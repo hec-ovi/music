@@ -106,5 +106,6 @@ function createPlayer(opts) {
 initApp({
   root: document.getElementById("app-root"),
   storage: window.localStorage,
-  createPlayer
+  createPlayer,
+  resolveTitles: true
 });

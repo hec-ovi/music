@@ -42,7 +42,9 @@ Playlist Title, [item, item, item]
 - Inside the brackets: comma-separated ids and/or links.
 - Each item may carry a label with `Label | id-or-link`.
 - Put **one playlist per line** to create several at once.
-- Importing into an existing playlist name appends (and de-dupes) into it.
+- A line with just a title and no brackets creates an empty playlist.
+- A title that matches an existing playlist is rejected (no append, merge, or
+  overwrite). Rename or remove the existing one first.
 
 ### Example output an agent can produce
 

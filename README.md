@@ -5,25 +5,50 @@ playlists never are: they live only in your browser's `localStorage`, not in thi
 repo. You build them yourself by pasting YouTube ids or links.
 
 It plays like a classic audio player. The YouTube video is hidden by default
-(toggle "Show video" if you want it), and you get play/pause, stop, prev/next, a
-seek timeline, shuffle, and loop.
+(toggle "Show video" if you want it), and you get a thumbnail-first queue,
+play/pause, stop, prev/next, a seek timeline, shuffle, loop, volume, and direct
+YouTube links.
 
 ## What it does
 
-- Create named playlists, rename and delete them.
+- Create playlists from the Bulk import box: paste a `Playlist Title, [songs]`
+  block, or just a title on its own line to start an empty playlist. Rename and
+  delete them later. A title that matches an existing playlist is rejected, so an
+  import never silently overwrites or merges what you already have.
 - Add tracks by pasting a video id or any YouTube link. Both work in the same
   field, mixed and comma or newline separated: `id, link, id, link`.
-- Bulk import whole playlists from a `Title, [songs]` block (handy for AI agents,
-  see below).
 - Reorder tracks (drag, or the up/down arrows), rename or remove them, add more
   on the fly.
 - Play any track on demand, shuffle, loop, scrub the timeline, set volume.
-- Everything persists to `localStorage`, so a reload keeps your library.
+- See YouTube thumbnails for playlists and tracks, with best-effort title lookup
+  from YouTube when the browser allows it.
+- Copy a playlist back out as a bulk block, or share it as a URL that rebuilds it
+  in someone else's browser.
+- Use internal modals for rename/delete flows; no browser prompt/confirm popups.
+- Everything persists to `localStorage`, so a reload keeps your library. Wipe it
+  all from the drawer's "Clean local data" button.
 
 ## Using it
 
-Open the page, type a playlist name, hit Create. Paste ids/links into the Add
-field. Click a track title to play it. That is the whole loop.
+Open the page, open the Playlists drawer, and paste into the Bulk import box: a
+full `Playlist Title, [songs]` block, or just a title to make an empty playlist.
+The "+" next to "Bulk import format" explains the format with examples. Then
+paste ids/links into the Add field and click a track to play it. Click a playlist
+to expand its editor; click it again (or the collapse button) to fold it back.
+
+Keyboard controls (experimental) follow the old Winamp layout. They listen at
+the page level and skip text fields, so they work whenever the page has focus. If
+you click into the embedded video, the YouTube player captures keystrokes until
+you click back onto the page.
+
+```
+Z previous
+X play current track from the beginning
+C pause
+V stop
+B next
+Space pause/resume the current track (does not start playback from scratch)
+```
 
 Accepted track inputs (any mix, in one field):
 
@@ -42,15 +67,16 @@ Playlist Title, [id, https://youtu.be/id, Song Name | id]
 ```
 
 Ask an AI agent to find videos for a list of songs and emit that format, then
-paste the result. Full details and a ready prompt are in
-[`PLAYLISTS_FORMAT.md`](PLAYLISTS_FORMAT.md).
+paste the result. Agents should read [`SKILL.md`](SKILL.md), a short, copy-paste
+ready guide for producing import blocks. The longer reference and a ready prompt
+are in [`PLAYLISTS_FORMAT.md`](PLAYLISTS_FORMAT.md).
 
 ## Files
 
 - `index.html` is the GitHub Pages entry point.
 - `main.js` mounts the app and wires the real YouTube IFrame player.
 - `app.js` renders the UI and handles playback; `store.js` holds all the
-  localStorage and id/link parsing logic.
+  localStorage, YouTube URL, thumbnail, and id/link parsing logic.
 - `styles.css` is the styling. `PLAYLISTS_FORMAT.md` documents the import format.
 
 No build step. GitHub Pages serves it straight from the repository root.
@@ -83,3 +109,52 @@ gh api repos/<owner>/music/pages \
 
 Then the site is at `https://<owner>.github.io/music/`. The repo can stay public
 since it carries no personal playlist data.
+
+## For AI agents
+
+If you are an agent building a playlist for someone, read [`SKILL.md`](SKILL.md).
+It is a short, copy-paste ready guide for emitting the bulk-import block the user
+pastes into the app. [`PLAYLISTS_FORMAT.md`](PLAYLISTS_FORMAT.md) is the longer
+reference.
+
+## Copyright and responsible use
+
+This is a personal tool for organizing your own YouTube listening (for example,
+videos from your own channel, or public videos you have the right to watch and
+embed). It is built to stay on the right side of YouTube and Google:
+
+- **It never downloads, rips, copies, caches, or rehosts any video or audio.**
+  Playback runs through YouTube's official
+  [IFrame Player API](https://developers.google.com/youtube/iframe_api_reference),
+  so every video plays inside YouTube's own embedded player, subject to the
+  [YouTube API Services Terms](https://developers.google.com/youtube/terms/api-services-terms-of-service)
+  and [Developer Policies](https://developers.google.com/youtube/terms/developer-policies).
+  This is the same embedding mechanism any website uses.
+- **It does not block or strip ads and does not touch analytics.** The embedded
+  player serves YouTube's ads and reporting exactly as it would anywhere else. (If
+  you run an ad blocker, that is your browser blocking those requests, not this
+  app.)
+- **It respects each creator's settings.** A video whose owner disabled embedding
+  simply will not play here.
+- **No video content or playlist lives in this repository.** The code ships with
+  obviously fake placeholder ids only (`VIDEOID0001`, etc.). Real video ids and
+  links exist solely in your browser's `localStorage`, and in share URLs you
+  generate yourself, never in git. So the public repo contains no references to
+  anyone's copyrighted videos.
+- **You are responsible for what you put in it.** Only add content you are allowed
+  to watch and embed.
+
+This project is not affiliated with, endorsed by, or sponsored by YouTube or
+Google. "YouTube" and "Google" are trademarks of Google LLC. The software license
+covers this code only; it grants no rights to any video content.
+
+**Reporting.** This project hosts no audio or video and keeps no copy of anyone's
+playlists, so there is nothing here to take down. If a specific video is
+infringing, report it to YouTube, where it is hosted, not to this repository.
+Issues claiming infringement by embedded videos will be closed, since the videos
+are served by YouTube under YouTube's own terms.
+
+**No warranty.** The software is provided "as is", without warranty of any kind,
+and is intended for lawful personal use. You are responsible for what you play
+through it and for complying with YouTube's Terms of Service and applicable law.
+The authors are not liable for how anyone else uses it. See [`LICENSE`](LICENSE).

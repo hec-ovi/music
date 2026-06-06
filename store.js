@@ -5,6 +5,29 @@ export const STORAGE_KEY = "musicLooper.v2";
 
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
+export function youtubeWatchUrl(videoId) {
+  return "https://www.youtube.com/watch?v=" + videoId;
+}
+
+export function youtubeThumbnailUrl(videoId) {
+  return "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
+}
+
+function cleanText(value) {
+  return String(value == null ? "" : value).trim();
+}
+
+function makeTrack(videoId, label, extra = {}) {
+  const title = cleanText(extra.youtubeTitle);
+  return {
+    videoId,
+    label: cleanText(label) || videoId,
+    url: youtubeWatchUrl(videoId),
+    thumbnailUrl: youtubeThumbnailUrl(videoId),
+    youtubeTitle: title
+  };
+}
+
 // Pull an 11-char YouTube video id out of a bare id or any YouTube URL shape
 // (watch?v=, youtu.be/, /embed/, /shorts/, /live/, /v/, with extra params).
 export function extractVideoId(raw) {
@@ -59,7 +82,7 @@ export function parseTrackToken(token) {
 
   const videoId = extractVideoId(idPart);
   if (!videoId) return null;
-  return { videoId, label: label || videoId };
+  return makeTrack(videoId, label || videoId);
 }
 
 // A blob of ids/links -> deduped track list. Splits on commas and newlines so
@@ -80,22 +103,48 @@ export function parseTracks(raw) {
   return tracks;
 }
 
-// Bulk import format meant for AI agents and copy/paste:
-//   Title, [id, https://youtu.be/id, Song Name | id]
-// Multiple playlists allowed (repeat the pattern, one per line or inline).
+// Bulk import format meant for AI agents and copy/paste, one playlist per line:
+//   Playlist Title, [id, https://youtu.be/id, Song Name | id]
+// A line that is just a title (no brackets) becomes an empty playlist, so the
+// bulk box doubles as the "make an empty playlist" entry point.
 export function parseImport(raw) {
   const text = String(raw == null ? "" : raw);
   const results = [];
   const re = /([^[\]]*?)\s*,?\s*\[([^[\]]*)\]/g;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    const name = m[1].replace(/[\n\r,]+/g, " ").trim();
-    const tracks = parseTracks(m[2]);
-    if (tracks.length) {
-      results.push({ name: name || "Imported playlist", tracks });
+  text.split(/\r?\n/).forEach((line) => {
+    if (!line.trim()) return;
+    let matched = false;
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      matched = true;
+      const name = m[1].replace(/,+/g, " ").trim();
+      const tracks = parseTracks(m[2]);
+      if (tracks.length) {
+        results.push({ name: name || "Imported playlist", tracks });
+      }
     }
-  }
+    if (!matched) {
+      const name = line.replace(/,\s*$/, "").trim();
+      if (name) results.push({ name, tracks: [] });
+    }
+  });
   return results;
+}
+
+export function playlistToBulkText(playlist) {
+  if (!playlist || typeof playlist !== "object") return "";
+  const name = cleanText(playlist.name) || "Playlist";
+  const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
+  const parts = tracks
+    .filter((track) => track && ID_RE.test(track.videoId))
+    .map((track) => {
+      const label = cleanText(track.label);
+      return label && label !== track.videoId
+        ? label + " | " + track.videoId
+        : track.videoId;
+    });
+  return name + ", [" + parts.join(", ") + "]";
 }
 
 export function genId(prefix = "pl") {
@@ -117,6 +166,11 @@ function normalizeState(value) {
   const base = emptyState();
   if (!value || typeof value !== "object") return base;
 
+  function normalizeTrack(t) {
+    if (!t || typeof t !== "object" || !ID_RE.test(t.videoId)) return null;
+    return makeTrack(t.videoId, t.label, { youtubeTitle: t.youtubeTitle });
+  }
+
   const playlists = Array.isArray(value.playlists)
     ? value.playlists
         .filter((p) => p && typeof p === "object")
@@ -125,14 +179,8 @@ function normalizeState(value) {
           name: typeof p.name === "string" && p.name.trim() ? p.name : "Playlist",
           tracks: Array.isArray(p.tracks)
             ? p.tracks
-                .filter((t) => t && ID_RE.test(t.videoId))
-                .map((t) => ({
-                  videoId: t.videoId,
-                  label:
-                    typeof t.label === "string" && t.label.trim()
-                      ? t.label
-                      : t.videoId
-                }))
+                .map(normalizeTrack)
+                .filter(Boolean)
             : []
         }))
     : [];
@@ -264,30 +312,34 @@ export function moveTrack(state, id, from, to) {
   return target;
 }
 
-// Import one or more "Title, [songs]" blocks. Merges into a same-named
-// playlist when one exists, otherwise creates it. Returns a per-block summary.
+// Import one or more "Title, [songs]" blocks. Same-named playlists are rejected
+// so imports never silently overwrite or merge existing user data.
 export function importPlaylists(state, raw) {
   const blocks = parseImport(raw);
   const summary = [];
   blocks.forEach((block) => {
-    let playlist = state.playlists.find(
+    const duplicate = state.playlists.find(
       (p) => p.name.toLowerCase() === block.name.toLowerCase()
     );
-    let created = false;
-    if (!playlist) {
-      playlist = createPlaylist(state, block.name);
-      created = true;
+    if (duplicate) {
+      summary.push({
+        name: block.name,
+        id: duplicate.id,
+        added: 0,
+        created: false,
+        duplicate: true
+      });
+      return;
     }
-    const existing = new Set(playlist.tracks.map((t) => t.videoId));
+
+    const playlist = createPlaylist(state, block.name);
     let added = 0;
     block.tracks.forEach((track) => {
-      if (existing.has(track.videoId)) return;
-      existing.add(track.videoId);
       playlist.tracks.push(track);
       added += 1;
     });
     state.activePlaylistId = playlist.id;
-    summary.push({ name: playlist.name, id: playlist.id, added, created });
+    summary.push({ name: playlist.name, id: playlist.id, added, created: true, duplicate: false });
   });
   return summary;
 }

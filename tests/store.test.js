@@ -51,16 +51,22 @@ describe("extractVideoId", () => {
 
 describe("parseTrackToken", () => {
   it("returns id + default label", () => {
-    expect(parseTrackToken("VIDEOID0001")).toEqual({ videoId: "VIDEOID0001", label: "VIDEOID0001" });
+    expect(parseTrackToken("VIDEOID0001")).toMatchObject({
+      videoId: "VIDEOID0001",
+      label: "VIDEOID0001",
+      url: "https://www.youtube.com/watch?v=VIDEOID0001",
+      thumbnailUrl: "https://i.ytimg.com/vi/VIDEOID0001/hqdefault.jpg",
+      youtubeTitle: ""
+    });
   });
   it("honors a Label | id form", () => {
-    expect(parseTrackToken("My label | VIDEOID0001")).toEqual({
+    expect(parseTrackToken("My label | VIDEOID0001")).toMatchObject({
       videoId: "VIDEOID0001",
       label: "My label"
     });
   });
   it("honors a Label | link form", () => {
-    expect(parseTrackToken("Track one | https://youtu.be/VIDEOID0002")).toEqual({
+    expect(parseTrackToken("Track one | https://youtu.be/VIDEOID0002")).toMatchObject({
       videoId: "VIDEOID0002",
       label: "Track one"
     });
@@ -100,7 +106,7 @@ describe("parseImport", () => {
     const out = parseImport(text);
     expect(out).toHaveLength(2);
     expect(out[0].name).toBe("First Playlist");
-    expect(out[0].tracks[0]).toEqual({ videoId: "VIDEOID0002", label: "Track one" });
+    expect(out[0].tracks[0]).toMatchObject({ videoId: "VIDEOID0002", label: "Track one" });
     expect(out[1].name).toBe("Second Playlist");
     expect(out[1].tracks[1].label).toBe("Track three");
   });
@@ -112,6 +118,24 @@ describe("parseImport", () => {
 
   it("ignores blocks with no valid tracks", () => {
     expect(parseImport("Empty, [nope, junk]")).toHaveLength(0);
+  });
+
+  it("treats a bracket-less line as an empty playlist", () => {
+    const out = parseImport("Just A Title");
+    expect(out).toHaveLength(1);
+    expect(out[0].name).toBe("Just A Title");
+    expect(out[0].tracks).toEqual([]);
+  });
+
+  it("strips a trailing comma from a title-only line", () => {
+    expect(parseImport("Solo Title,")[0].name).toBe("Solo Title");
+  });
+
+  it("mixes title-only and track-bearing lines", () => {
+    const out = parseImport("Empty One\nFull, [VIDEOID0001]");
+    expect(out.map((p) => p.name)).toEqual(["Empty One", "Full"]);
+    expect(out[0].tracks).toHaveLength(0);
+    expect(out[1].tracks).toHaveLength(1);
   });
 });
 
@@ -166,12 +190,27 @@ describe("playlist CRUD", () => {
     expect(state.activePlaylistId).toBe(a.id);
   });
 
-  it("imports playlists and merges into same-named ones", () => {
+  it("rejects imports that reuse an existing playlist name", () => {
     importPlaylists(state, "Mix, [VIDEOID0001]");
     const summary = importPlaylists(state, "Mix, [VIDEOID0003, VIDEOID0001]");
     expect(state.playlists).toHaveLength(1);
+    expect(state.playlists[0].tracks).toHaveLength(1);
+    expect(summary[0]).toMatchObject({ added: 0, created: false, duplicate: true });
+  });
+
+  it("creates a new playlist when the name is unused", () => {
+    const summary = importPlaylists(state, "Fresh, [VIDEOID0001, VIDEOID0002]");
+    expect(state.playlists).toHaveLength(1);
     expect(state.playlists[0].tracks).toHaveLength(2);
-    expect(summary[0]).toMatchObject({ added: 1, created: false });
+    expect(summary[0]).toMatchObject({ added: 2, created: true, duplicate: false });
+  });
+
+  it("imports a title-only line as an empty playlist", () => {
+    const summary = importPlaylists(state, "Solo Title");
+    expect(state.playlists).toHaveLength(1);
+    expect(state.playlists[0].name).toBe("Solo Title");
+    expect(state.playlists[0].tracks).toHaveLength(0);
+    expect(summary[0]).toMatchObject({ added: 0, created: true, duplicate: false });
   });
 });
 
