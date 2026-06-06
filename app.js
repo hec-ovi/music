@@ -138,7 +138,7 @@ const SHELL = `
       <section class="drawer-panel drawer-reset-panel" aria-label="Local data">
         <div>
           <div class="drawer-section-title">Local data</div>
-          <p class="drawer-note">Wipe all playlists and player settings stored on this localhost page.</p>
+          <p class="drawer-note">Wipe all playlists and player settings stored in this browser.</p>
         </div>
         <button class="button clean-action" id="clear-local" type="button">Clean local data</button>
       </section>
@@ -644,7 +644,7 @@ export function initApp(options) {
 
   async function clearLocalData() {
     const ok = await ui.confirm(
-      "Wipe all playlists and settings stored for this localhost page?",
+      "Wipe all playlists and settings stored in this browser?",
       "Wipe"
     );
     if (!ok) return;
