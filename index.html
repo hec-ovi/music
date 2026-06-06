@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Music Looper</title>
+  <meta name="description" content="A GitHub Pages playlist looper for three YouTube-backed music playlists.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Music Looper</h1>
+        <p class="subhead" id="library-summary">Loading playlists...</p>
+      </div>
+
+      <div class="toolbar" aria-label="Playback options">
+        <div class="segmented" aria-label="Playback order">
+          <button id="ordered-button" type="button">Ordered</button>
+          <button id="shuffle-button" type="button">Shuffle</button>
+        </div>
+        <label class="switch">
+          <input id="loop-toggle" type="checkbox" checked>
+          <span>Loop</span>
+        </label>
+        <button class="button" id="copy-button" type="button">Copy links</button>
+        <button class="button" id="export-button" type="button">Export M3U</button>
+      </div>
+    </header>
+
+    <nav class="playlist-tabs" id="playlist-tabs" aria-label="Playlists"></nav>
+
+    <section class="layout" aria-label="Playlist player">
+      <div class="panel">
+        <div class="player-frame">
+          <div id="youtube-player"></div>
+        </div>
+
+        <div class="player-meta">
+          <div class="now">
+            <div class="now-kicker" id="now-playlist">Playlist</div>
+            <div class="now-title" id="now-title">Select a playlist</div>
+            <div class="now-subtitle" id="now-subtitle">Ready</div>
+          </div>
+
+          <div class="transport" aria-label="Transport controls">
+            <button class="button" id="previous-button" type="button">Prev</button>
+            <button class="button primary" id="play-button" type="button">Play</button>
+            <button class="button" id="next-button" type="button">Next</button>
+            <a class="button warn" id="youtube-link" href="https://youtube.com" target="_blank" rel="noopener">YouTube</a>
+          </div>
+        </div>
+
+        <div class="status-line">
+          <span id="status-text">YouTube player loading</span>
+          <span><strong id="current-position">0</strong> / <span id="playlist-size">0</span></span>
+        </div>
+      </div>
+
+      <aside class="panel" aria-label="Track queue">
+        <div class="queue-head">
+          <div class="queue-title">
+            <span id="queue-title">Queue</span>
+            <span class="queue-count" id="queue-count">0 tracks</span>
+          </div>
+          <input class="search" id="search" type="search" placeholder="Filter tracks">
+        </div>
+        <div class="track-list" id="track-list"></div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="playlists.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
