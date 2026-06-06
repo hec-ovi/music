@@ -332,24 +332,17 @@ describe("bulk import", () => {
     expect(message).toMatch(/empty playlist/);
   });
 
-  it("shows copy/share feedback transiently and restores the prior status line", async () => {
+  it("copying a playlist leaves the playback status line untouched", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     await importViaBulk(user, q, "Mix, [VIDEOID0001]");
     const status = root.querySelector("#status-text");
     const before = status.textContent;
-
-    vi.useFakeTimers();
-    try {
-      root.querySelector("#share-playlist").click();
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(status.textContent).not.toBe(before); // transient feedback shown
-      vi.advanceTimersByTime(3000);
-      expect(status.textContent).toBe(before); // playback status restored
-    } finally {
-      vi.useRealTimers();
-    }
+    root.querySelector("#export-playlist").click();
+    root.querySelector("#share-playlist").click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(status.textContent).toBe(before);
   });
 
   it("dismisses a modal with the top-right close button", async () => {
@@ -407,14 +400,14 @@ describe("playlist drawer editor", () => {
 });
 
 describe("options", () => {
-  it("reveals the video when Show video is toggled", async () => {
+  it("shows the video by default and hides it when the user toggles it off", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     const frame = root.querySelector("#player-frame");
+    expect(frame.getAttribute("data-show")).toBe("true"); // visible by default
+    await user.click(q.getByLabelText("Show video")); // user chooses to hide it
     expect(frame.getAttribute("data-show")).toBe("false");
-    await user.click(q.getByLabelText("Show video"));
-    expect(frame.getAttribute("data-show")).toBe("true");
-    expect(loadState(localStorage).settings.showVideo).toBe(true);
+    expect(loadState(localStorage).settings.showVideo).toBe(false);
   });
 
   it("persists shuffle and still plays every track without repeats in a cycle", async () => {

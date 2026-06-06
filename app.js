@@ -174,7 +174,7 @@ const SHELL = `
       <div class="options" aria-label="Playback options">
         <label class="switch" title="Shuffle"><input id="shuffle-toggle" type="checkbox"><span data-icon="shuffle"></span><span class="sr-only">Shuffle</span></label>
         <label class="switch" title="Loop"><input id="loop-toggle" type="checkbox" checked><span data-icon="loop"></span><span class="sr-only">Loop</span></label>
-        <label class="switch" title="Show video"><input id="show-video-toggle" type="checkbox"><span data-icon="eye"></span><span class="sr-only">Show video</span></label>
+        <label class="switch" title="Show video"><input id="show-video-toggle" type="checkbox" checked><span data-icon="eye"></span><span class="sr-only">Show video</span></label>
         <label class="volume"><span class="sr-only">Volume</span><input id="volume" type="range" min="0" max="100" value="100" aria-label="Volume"></label>
       </div>
 
@@ -584,17 +584,6 @@ export function initApp(options) {
     els.statusText.textContent = message;
   }
 
-  // Show a transient message (e.g. "Copied share link") without permanently
-  // clobbering the playback status. Restores the prior text after a moment,
-  // unless something else has since updated the line.
-  function flashStatus(message) {
-    const previous = els.statusText.textContent;
-    setStatus(message);
-    window.setTimeout(() => {
-      if (els.statusText.textContent === message) setStatus(previous);
-    }, 2500);
-  }
-
   async function reportDuplicatePlaylists(duplicates) {
     if (!duplicates.length) return;
     await ui.alert(DUPLICATE_PLAYLIST_MESSAGE, "Playlist already exists");
@@ -639,24 +628,18 @@ export function initApp(options) {
     }
   }
 
+  // Copy actions deliberately leave the status line alone: changing its text
+  // reflows the footer and nudges the controls, so they give no status feedback.
   async function copyActivePlaylistBulk() {
     const playlist = activePlaylist();
-    if (!playlist) {
-      flashStatus("No playlist to copy");
-      return;
-    }
-    const ok = await copyText(playlistToBulkText(playlist));
-    flashStatus(ok ? "Copied playlist bulk format" : "Clipboard unavailable");
+    if (!playlist) return;
+    await copyText(playlistToBulkText(playlist));
   }
 
   async function copyActivePlaylistShareUrl() {
     const playlist = activePlaylist();
-    if (!playlist) {
-      flashStatus("No playlist to share");
-      return;
-    }
-    const ok = await copyText(playlistShareUrl(playlist));
-    flashStatus(ok ? "Copied share link" : "Clipboard unavailable");
+    if (!playlist) return;
+    await copyText(playlistShareUrl(playlist));
   }
 
   async function clearLocalData() {

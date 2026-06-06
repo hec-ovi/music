@@ -158,7 +158,7 @@ export function emptyState() {
   return {
     playlists: [],
     activePlaylistId: null,
-    settings: { shuffle: false, loop: true, showVideo: false, volume: 100 }
+    settings: { shuffle: false, loop: true, showVideo: true, volume: 100 }
   };
 }
 
@@ -198,7 +198,7 @@ function normalizeState(value) {
     settings: {
       shuffle: !!settings.shuffle,
       loop: settings.loop !== false,
-      showVideo: !!settings.showVideo,
+      showVideo: settings.showVideo !== false,
       volume:
         typeof settings.volume === "number" &&
         settings.volume >= 0 &&

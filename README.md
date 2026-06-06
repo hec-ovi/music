@@ -1,13 +1,15 @@
-# Music Looper
+# Personal Music YT Player
+
+**Live demo: https://hec-ovi.github.io/music/**
 
 A static, no-backend YouTube playlist player. The page can be public, but your
 playlists never are: they live only in your browser's `localStorage`, not in this
 repo. You build them yourself by pasting YouTube ids or links.
 
-It plays like a classic audio player. The YouTube video is hidden by default
-(toggle "Show video" if you want it), and you get a thumbnail-first queue,
-play/pause, stop, prev/next, a seek timeline, shuffle, loop, volume, and direct
-YouTube links.
+The YouTube video shows by default, and on top of the standard player you get a
+thumbnail-first queue, play/pause, stop, prev/next, a seek timeline, shuffle,
+loop, volume, and direct YouTube links. If you just want it as background audio,
+"Show video" is a toggle you can turn off.
 
 ## What it does
 
