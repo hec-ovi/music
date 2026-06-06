@@ -3,6 +3,7 @@
 *If you are an agent, read [`SKILL.md`](SKILL.md) first.*
 
 [![demo](https://img.shields.io/badge/demo-live-black.svg)](https://hec-ovi.github.io/music/)
+[![play a sample list](https://img.shields.io/badge/%E2%96%B6-sample%20list-black.svg)](https://hec-ovi.github.io/music/?playlist=Sample%20List%2C%20%5B2frers%20-%20EYES%20ON%20US%20%7C%20CsQ59uMYB_Y%2C%20NAVARA%20-%20FALLEN%20ANGEL%20%7C%20sWd8bc_LkqM%2C%20Sano%20-%20SET%20ME%20FREE%20%7C%20e1QIqXmZ2os%2C%20ruindkid%20-%20Bad%20Pitch%20For%20You%20%7C%20UhaU1ZVu9v0%2C%20KORZIX%20-%20ascend%20%7C%20ibPYPD8Hl4Q%2C%20Oxlo%20-%20Anesthesia%20%7C%20f59m5Pugdw4%2C%20Pat%20-%20Shotgun%20%7C%209fHjcTKV-kg%5D)
 [![license: MIT](https://img.shields.io/badge/license-MIT-black.svg)](./LICENSE)
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
