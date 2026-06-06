@@ -218,6 +218,21 @@ h1 {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #020305;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Hidden by default: this is a classic player, the video stays out of view
+   while audio keeps playing. Toggle "Show video" to reveal it. */
+.player-frame[data-show="false"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  aspect-ratio: auto;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 #youtube-player {
@@ -388,6 +403,177 @@ h1 {
   padding: 24px 16px;
   color: var(--muted);
   text-align: center;
+}
+
+/* --- manage / create / import --- */
+.manage {
+  padding: 14px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.row .search {
+  flex: 1 1 220px;
+  width: auto;
+}
+
+.import summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.import .hint {
+  color: var(--muted);
+  font-size: 0.84rem;
+  margin: 8px 0;
+}
+
+.import code {
+  background: #0d1117;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 0.82rem;
+}
+
+.import-text {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d1117;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  resize: vertical;
+  outline: 0;
+}
+
+.import-text:focus {
+  border-color: var(--cyan);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+/* --- seek bar + options --- */
+.seekbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 4px;
+}
+
+.seekbar .time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.84rem;
+}
+
+.seekbar input[type="range"] {
+  width: 100%;
+  accent-color: var(--cyan);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.options .switch {
+  min-height: 34px;
+}
+
+.switch.volume {
+  flex: 1 1 140px;
+}
+
+.switch.volume input[type="range"] {
+  width: 100%;
+  height: auto;
+  accent-color: var(--cyan);
+}
+
+/* --- queue actions + track controls --- */
+.queue-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.link-button.danger {
+  color: var(--amber);
+}
+
+.track-title-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 760;
+  line-height: 1.18;
+  padding: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.track-title-button:hover {
+  color: var(--cyan);
+}
+
+.icon-button {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.icon-button.danger {
+  color: var(--amber);
+}
+
+.track[draggable="true"] {
+  cursor: grab;
+}
+
+.track.dragging {
+  opacity: 0.5;
+}
+
+.transport {
+  grid-template-columns: repeat(4, minmax(60px, 1fr));
+  padding: 4px 16px 0;
+  justify-content: stretch;
 }
 
 @media (max-width: 900px) {
