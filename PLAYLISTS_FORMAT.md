@@ -1,6 +1,6 @@
 # Playlist format (for humans and AI agents)
 
-Music Looper keeps all playlists in your browser's `localStorage`. Nothing is
+Personal Music YT Player keeps all playlists in your browser's `localStorage`. Nothing is
 stored in this repo, so the page can be public while your playlists stay private
 to your machine. You build playlists two ways: type ids/links into a playlist,
 or paste a bulk block produced by an AI agent.
@@ -55,7 +55,7 @@ Second Playlist, [VIDEOID0004, https://www.youtube.com/watch?v=VIDEOID0005, Trac
 
 ## Prompt template for an AI agent
 
-> You are building a Music Looper import block. I will give you a theme or a list
+> You are building a Personal Music YT Player import block. I will give you a theme or a list
 > of song names. For each song, find its YouTube video and output the 11-character
 > video id (or a full YouTube link). Return exactly this format, one playlist per
 > line, nothing else:

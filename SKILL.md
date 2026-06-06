@@ -1,11 +1,11 @@
 ---
-name: music-looper-playlists
-description: Produce a Music Looper bulk-import block so a user can build a YouTube playlist in their browser. Use when a user asks you to make, fill, or extend a Music Looper playlist, or to turn a list of songs/videos into something they can paste into the app.
+name: personal-music-yt-player-playlists
+description: Produce a Personal Music YT Player bulk-import block so a user can build a YouTube playlist in their browser. Use when a user asks you to make, fill, or extend a Personal Music YT Player playlist, or to turn a list of songs/videos into something they can paste into the app.
 ---
 
-# Making Music Looper playlists
+# Making Personal Music YT Player playlists
 
-Music Looper is a static, browser-only YouTube playlist player. Playlists live in
+Personal Music YT Player is a static, browser-only YouTube playlist player. Playlists live in
 the user's own browser (localStorage); nothing is stored server-side. Your job as
 an agent is to emit a plain-text **bulk-import block** that the user pastes into
 the app's "Bulk import" box.
