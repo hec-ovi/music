@@ -58,33 +58,33 @@ describe("creating and filling a playlist", () => {
     const user = userEvent.setup();
     const { root, q } = mount();
 
-    await user.type(q.getByLabelText("New playlist name"), "Road Trip");
+    await user.type(q.getByLabelText("New playlist name"), "My Playlist");
     await user.click(q.getByRole("button", { name: "Create playlist" }));
 
-    expect(q.getByRole("button", { name: /Road Trip/ })).toBeTruthy();
+    expect(q.getByRole("button", { name: /My Playlist/ })).toBeTruthy();
 
     const addInput = q.getByLabelText("Add tracks");
     await user.type(
       addInput,
-      "dQw4w9WgXcQ, https://youtu.be/cWvtB0YNu5k, 9hc6hSKTAEA"
+      "VIDEOID0001, https://youtu.be/VIDEOID0002, VIDEOID0003"
     );
     await user.click(q.getByRole("button", { name: "Add" }));
 
     expect(root.querySelectorAll(".track")).toHaveLength(3);
     expect([...root.querySelectorAll(".track-source")].map((n) => n.textContent)).toEqual([
-      "dQw4w9WgXcQ",
-      "cWvtB0YNu5k",
-      "9hc6hSKTAEA"
+      "VIDEOID0001",
+      "VIDEOID0002",
+      "VIDEOID0003"
     ]);
     expect(root.querySelector("#queue-count").textContent).toBe("3 tracks");
 
     // Persisted to localStorage.
     const saved = loadState(localStorage);
-    expect(saved.playlists[0].name).toBe("Road Trip");
+    expect(saved.playlists[0].name).toBe("My Playlist");
     expect(saved.playlists[0].tracks.map((t) => t.videoId)).toEqual([
-      "dQw4w9WgXcQ",
-      "cWvtB0YNu5k",
-      "9hc6hSKTAEA"
+      "VIDEOID0001",
+      "VIDEOID0002",
+      "VIDEOID0003"
     ]);
   });
 
@@ -206,19 +206,19 @@ describe("bulk import", () => {
     details.open = true;
 
     const text = [
-      "Electronic Gems, [Voyage | cWvtB0YNu5k, 9hc6hSKTAEA]",
-      "Stoned Songs, [NvfRPXEXOcQ, Kyuss - Space Cadet | rcU-IfF-CWY]"
+      "First Playlist, [Track one | VIDEOID0002, VIDEOID0003]",
+      "Second Playlist, [VIDEOID0005, Track three | VIDEOID0006]"
     ].join("\n");
     await user.click(q.getByLabelText("Bulk import"));
     await user.paste(text); // realistic: the user pastes the agent's output
     await user.click(q.getByRole("button", { name: "Import" }));
 
-    expect(q.getByRole("button", { name: /Electronic Gems/ })).toBeTruthy();
-    expect(q.getByRole("button", { name: /Stoned Songs/ })).toBeTruthy();
+    expect(q.getByRole("button", { name: /First Playlist/ })).toBeTruthy();
+    expect(q.getByRole("button", { name: /Second Playlist/ })).toBeTruthy();
 
     const saved = loadState(localStorage);
     expect(saved.playlists).toHaveLength(2);
-    expect(saved.playlists[0].tracks[0]).toEqual({ videoId: "cWvtB0YNu5k", label: "Voyage" });
+    expect(saved.playlists[0].tracks[0]).toEqual({ videoId: "VIDEOID0002", label: "Track one" });
     expect(root.querySelector("#import-status").textContent).toMatch(/Imported 2 playlist/);
   });
 });

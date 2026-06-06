@@ -32,7 +32,7 @@ const SHELL = `
     <details class="import">
       <summary>Bulk import (paste agent output)</summary>
       <p class="hint">Format: <code>Title, [id, https://youtu.be/id, Song Name | id]</code>. One playlist per line. See <code>PLAYLISTS_FORMAT.md</code>.</p>
-      <textarea id="import-text" class="import-text" rows="4" placeholder="My Mix, [dQw4w9WgXcQ, https://youtu.be/cWvtB0YNu5k, Voyage | cWvtB0YNu5k]" aria-label="Bulk import"></textarea>
+      <textarea id="import-text" class="import-text" rows="4" placeholder="My Playlist, [VIDEOID0001, https://youtu.be/VIDEOID0002, Track label | VIDEOID0003]" aria-label="Bulk import"></textarea>
       <div class="row">
         <button class="button" id="import-button" type="button">Import</button>
         <span class="hint" id="import-status"></span>

@@ -20,26 +20,26 @@ import {
 
 describe("extractVideoId", () => {
   it("accepts a bare 11-char id", () => {
-    expect(extractVideoId("dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
-    expect(extractVideoId("  cWvtB0YNu5k ")).toBe("cWvtB0YNu5k");
+    expect(extractVideoId("VIDEOID0001")).toBe("VIDEOID0001");
+    expect(extractVideoId("  VIDEOID0002 ")).toBe("VIDEOID0002");
   });
 
   it("parses watch?v= links with extra params", () => {
-    expect(extractVideoId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s")).toBe("dQw4w9WgXcQ");
+    expect(extractVideoId("https://www.youtube.com/watch?v=VIDEOID0001&t=42s")).toBe("VIDEOID0001");
   });
 
   it("parses youtu.be short links", () => {
-    expect(extractVideoId("https://youtu.be/cWvtB0YNu5k?si=abc")).toBe("cWvtB0YNu5k");
+    expect(extractVideoId("https://youtu.be/VIDEOID0002?si=abc")).toBe("VIDEOID0002");
   });
 
   it("parses embed, shorts and live paths", () => {
-    expect(extractVideoId("https://www.youtube.com/embed/8GW6sLrK40k")).toBe("8GW6sLrK40k");
-    expect(extractVideoId("https://youtube.com/shorts/9hc6hSKTAEA")).toBe("9hc6hSKTAEA");
-    expect(extractVideoId("https://www.youtube.com/live/rcU-IfF-CWY")).toBe("rcU-IfF-CWY");
+    expect(extractVideoId("https://www.youtube.com/embed/VIDEOID0004")).toBe("VIDEOID0004");
+    expect(extractVideoId("https://youtube.com/shorts/VIDEOID0003")).toBe("VIDEOID0003");
+    expect(extractVideoId("https://www.youtube.com/live/VIDEOID0006")).toBe("VIDEOID0006");
   });
 
   it("parses links without a scheme", () => {
-    expect(extractVideoId("youtu.be/cWvtB0YNu5k")).toBe("cWvtB0YNu5k");
+    expect(extractVideoId("youtu.be/VIDEOID0002")).toBe("VIDEOID0002");
   });
 
   it("rejects junk", () => {
@@ -51,62 +51,62 @@ describe("extractVideoId", () => {
 
 describe("parseTrackToken", () => {
   it("returns id + default label", () => {
-    expect(parseTrackToken("dQw4w9WgXcQ")).toEqual({ videoId: "dQw4w9WgXcQ", label: "dQw4w9WgXcQ" });
+    expect(parseTrackToken("VIDEOID0001")).toEqual({ videoId: "VIDEOID0001", label: "VIDEOID0001" });
   });
   it("honors a Label | id form", () => {
-    expect(parseTrackToken("Never Gonna | dQw4w9WgXcQ")).toEqual({
-      videoId: "dQw4w9WgXcQ",
-      label: "Never Gonna"
+    expect(parseTrackToken("My label | VIDEOID0001")).toEqual({
+      videoId: "VIDEOID0001",
+      label: "My label"
     });
   });
   it("honors a Label | link form", () => {
-    expect(parseTrackToken("Voyage | https://youtu.be/cWvtB0YNu5k")).toEqual({
-      videoId: "cWvtB0YNu5k",
-      label: "Voyage"
+    expect(parseTrackToken("Track one | https://youtu.be/VIDEOID0002")).toEqual({
+      videoId: "VIDEOID0002",
+      label: "Track one"
     });
   });
 });
 
 describe("parseTracks", () => {
   it("splits mixed ids and links on commas", () => {
-    const out = parseTracks("dQw4w9WgXcQ, https://youtu.be/cWvtB0YNu5k, 9hc6hSKTAEA");
-    expect(out.map((t) => t.videoId)).toEqual(["dQw4w9WgXcQ", "cWvtB0YNu5k", "9hc6hSKTAEA"]);
+    const out = parseTracks("VIDEOID0001, https://youtu.be/VIDEOID0002, VIDEOID0003");
+    expect(out.map((t) => t.videoId)).toEqual(["VIDEOID0001", "VIDEOID0002", "VIDEOID0003"]);
   });
 
   it("splits on newlines too and drops junk", () => {
-    const out = parseTracks("dQw4w9WgXcQ\nnonsense\n9hc6hSKTAEA");
-    expect(out.map((t) => t.videoId)).toEqual(["dQw4w9WgXcQ", "9hc6hSKTAEA"]);
+    const out = parseTracks("VIDEOID0001\nnonsense\nVIDEOID0003");
+    expect(out.map((t) => t.videoId)).toEqual(["VIDEOID0001", "VIDEOID0003"]);
   });
 
   it("de-dupes within the input", () => {
-    const out = parseTracks("dQw4w9WgXcQ, dQw4w9WgXcQ, https://youtu.be/dQw4w9WgXcQ");
+    const out = parseTracks("VIDEOID0001, VIDEOID0001, https://youtu.be/VIDEOID0001");
     expect(out).toHaveLength(1);
   });
 });
 
 describe("parseImport", () => {
   it("parses a single Title, [songs] block", () => {
-    const out = parseImport("My Mix, [dQw4w9WgXcQ, https://youtu.be/cWvtB0YNu5k]");
+    const out = parseImport("My Mix, [VIDEOID0001, https://youtu.be/VIDEOID0002]");
     expect(out).toHaveLength(1);
     expect(out[0].name).toBe("My Mix");
-    expect(out[0].tracks.map((t) => t.videoId)).toEqual(["dQw4w9WgXcQ", "cWvtB0YNu5k"]);
+    expect(out[0].tracks.map((t) => t.videoId)).toEqual(["VIDEOID0001", "VIDEOID0002"]);
   });
 
   it("parses multiple playlists, one per line, with labels", () => {
     const text = [
-      "Electronic Gems, [Voyage | cWvtB0YNu5k, 9hc6hSKTAEA]",
-      "Stoned Songs, [NvfRPXEXOcQ, Kyuss - Space Cadet | rcU-IfF-CWY]"
+      "First Playlist, [Track one | VIDEOID0002, VIDEOID0003]",
+      "Second Playlist, [VIDEOID0005, Track three | VIDEOID0006]"
     ].join("\n");
     const out = parseImport(text);
     expect(out).toHaveLength(2);
-    expect(out[0].name).toBe("Electronic Gems");
-    expect(out[0].tracks[0]).toEqual({ videoId: "cWvtB0YNu5k", label: "Voyage" });
-    expect(out[1].name).toBe("Stoned Songs");
-    expect(out[1].tracks[1].label).toBe("Kyuss - Space Cadet");
+    expect(out[0].name).toBe("First Playlist");
+    expect(out[0].tracks[0]).toEqual({ videoId: "VIDEOID0002", label: "Track one" });
+    expect(out[1].name).toBe("Second Playlist");
+    expect(out[1].tracks[1].label).toBe("Track three");
   });
 
   it("tolerates a missing comma before the bracket", () => {
-    const out = parseImport("My Mix [dQw4w9WgXcQ]");
+    const out = parseImport("My Mix [VIDEOID0001]");
     expect(out[0].name).toBe("My Mix");
   });
 
@@ -130,20 +130,20 @@ describe("playlist CRUD", () => {
 
   it("adds tracks and skips duplicates", () => {
     const p = createPlaylist(state, "Test");
-    const r1 = addTracks(state, p.id, "dQw4w9WgXcQ, https://youtu.be/cWvtB0YNu5k");
+    const r1 = addTracks(state, p.id, "VIDEOID0001, https://youtu.be/VIDEOID0002");
     expect(r1).toEqual({ added: 2, skipped: 0 });
-    const r2 = addTracks(state, p.id, "dQw4w9WgXcQ, 9hc6hSKTAEA");
+    const r2 = addTracks(state, p.id, "VIDEOID0001, VIDEOID0003");
     expect(r2).toEqual({ added: 1, skipped: 1 });
     expect(p.tracks).toHaveLength(3);
   });
 
   it("removes a track and renames a track", () => {
     const p = createPlaylist(state, "Test");
-    addTracks(state, p.id, "dQw4w9WgXcQ, 9hc6hSKTAEA, cWvtB0YNu5k");
+    addTracks(state, p.id, "VIDEOID0001, VIDEOID0003, VIDEOID0002");
     expect(renameTrack(state, p.id, 1, "Middle")).toBe(true);
     expect(p.tracks[1].label).toBe("Middle");
     expect(removeTrack(state, p.id, 0)).toBe(true);
-    expect(p.tracks.map((t) => t.videoId)).toEqual(["9hc6hSKTAEA", "cWvtB0YNu5k"]);
+    expect(p.tracks.map((t) => t.videoId)).toEqual(["VIDEOID0003", "VIDEOID0002"]);
   });
 
   it("moves tracks into a new order with clamping", () => {
@@ -167,8 +167,8 @@ describe("playlist CRUD", () => {
   });
 
   it("imports playlists and merges into same-named ones", () => {
-    importPlaylists(state, "Mix, [dQw4w9WgXcQ]");
-    const summary = importPlaylists(state, "Mix, [9hc6hSKTAEA, dQw4w9WgXcQ]");
+    importPlaylists(state, "Mix, [VIDEOID0001]");
+    const summary = importPlaylists(state, "Mix, [VIDEOID0003, VIDEOID0001]");
     expect(state.playlists).toHaveLength(1);
     expect(state.playlists[0].tracks).toHaveLength(2);
     expect(summary[0]).toMatchObject({ added: 1, created: false });
@@ -183,14 +183,14 @@ describe("persistence", () => {
   it("round-trips through localStorage", () => {
     const state = emptyState();
     const p = createPlaylist(state, "Saved");
-    addTracks(state, p.id, "dQw4w9WgXcQ");
+    addTracks(state, p.id, "VIDEOID0001");
     state.settings.shuffle = true;
     saveState(localStorage, state);
 
     const loaded = loadState(localStorage);
     expect(loaded.playlists).toHaveLength(1);
     expect(loaded.playlists[0].name).toBe("Saved");
-    expect(loaded.playlists[0].tracks[0].videoId).toBe("dQw4w9WgXcQ");
+    expect(loaded.playlists[0].tracks[0].videoId).toBe("VIDEOID0001");
     expect(loaded.settings.shuffle).toBe(true);
     expect(loaded.activePlaylistId).toBe(p.id);
   });

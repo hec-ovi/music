@@ -11,7 +11,7 @@ or paste a bulk block produced by an AI agent.
   the same field, mixed freely.
 - Accepted link shapes: `https://www.youtube.com/watch?v=ID`, `https://youtu.be/ID`,
   `https://youtube.com/shorts/ID`, `/embed/ID`, `/live/ID`, plus extra query params.
-- A bare id is 11 characters from `A-Z a-z 0-9 _ -` (e.g. `dQw4w9WgXcQ`).
+- A bare id is 11 characters from `A-Z a-z 0-9 _ -` (e.g. `VIDEOID0001`).
 - Duplicates inside the same playlist are skipped automatically.
 
 ## Adding tracks to a playlist (the "Add" field)
@@ -19,14 +19,14 @@ or paste a bulk block produced by an AI agent.
 Paste one id/link, or many separated by commas or new lines. Mixing is fine:
 
 ```
-dQw4w9WgXcQ
-https://youtu.be/cWvtB0YNu5k, 9hc6hSKTAEA, https://www.youtube.com/watch?v=8GW6sLrK40k
+VIDEOID0001
+https://youtu.be/VIDEOID0002, VIDEOID0003, https://www.youtube.com/watch?v=VIDEOID0004
 ```
 
 Optional readable name per track with a pipe (`Label | id-or-link`):
 
 ```
-Voyage - Allude | cWvtB0YNu5k, Daso - Go Upstairs | https://youtu.be/9hc6hSKTAEA
+Track one | VIDEOID0001, Track two | https://youtu.be/VIDEOID0002
 ```
 
 ## Bulk import (the agent format)
@@ -47,8 +47,8 @@ Playlist Title, [item, item, item]
 ### Example output an agent can produce
 
 ```
-Electronic Gems, [Voyage - Allude | cWvtB0YNu5k, Daso - Go Upstairs | 9hc6hSKTAEA, https://youtu.be/8GW6sLrK40k]
-Stoned Songs, [NvfRPXEXOcQ, https://www.youtube.com/watch?v=8FXhkC_soS4, Kyuss - Space Cadet | rcU-IfF-CWY]
+First Playlist, [Track one | VIDEOID0001, Track two | VIDEOID0002, https://youtu.be/VIDEOID0003]
+Second Playlist, [VIDEOID0004, https://www.youtube.com/watch?v=VIDEOID0005, Track three | VIDEOID0006]
 ```
 
 ## Prompt template for an AI agent

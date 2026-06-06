@@ -28,9 +28,9 @@ field. Click a track title to play it. That is the whole loop.
 Accepted track inputs (any mix, in one field):
 
 ```
-dQw4w9WgXcQ
-https://youtu.be/cWvtB0YNu5k, 9hc6hSKTAEA, https://www.youtube.com/watch?v=8GW6sLrK40k
-Voyage - Allude | cWvtB0YNu5k          # optional "Label | id-or-link"
+VIDEOID0001
+https://youtu.be/VIDEOID0002, VIDEOID0003, https://www.youtube.com/watch?v=VIDEOID0004
+Track label | VIDEOID0005             # optional "Label | id-or-link"
 ```
 
 ### Bulk import / AI agent format
