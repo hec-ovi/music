@@ -1,6 +1,13 @@
 # Personal Music YT Player
 
-**Live demo: https://hec-ovi.github.io/music/**
+*If you are an agent, read [`SKILL.md`](SKILL.md) first.*
+
+[![demo](https://img.shields.io/badge/demo-live-black.svg)](https://hec-ovi.github.io/music/)
+[![license: MIT](https://img.shields.io/badge/license-MIT-black.svg)](./LICENSE)
+![backend: none](https://img.shields.io/badge/backend-none-black.svg)
+![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
+[![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
+![tests: 55 passing](https://img.shields.io/badge/tests-55%20passing-black.svg)
 
 A static, no-backend YouTube playlist player. The page can be public, but your
 playlists never are: they live only in your browser's `localStorage`, not in this
