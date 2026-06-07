@@ -192,26 +192,52 @@ An empty playlist the user will fill later (title only, no brackets):
 Road Trip
 ```
 
-Output the block only: no commentary and no code fences in the final answer.
+The **plain bulk block is your primary deliverable**: it is paste-ready and has
+nothing to encode, so it is the hardest thing to get wrong. The clickable link
+below is an optional bonus on top of it. Output the block only: no commentary and
+no code fences in the final answer.
+
+## Before you send it: self-check
+
+Run this checklist on your block before you reply. It catches the mistakes that
+make the app reject an import or show garbled names:
+
+1. **One line, one playlist.** No second `Title, [...]` line.
+2. **Brackets balanced.** Exactly one `[` and one `]`, the `]` at the very end. A
+   missing `]` is the most common break.
+3. **Every id is bare and 11 chars**, matching `^[A-Za-z0-9_-]{11}$`. No
+   `http`, no `youtu`, no `watch?v=`, no `&t=` tails.
+4. **Commas only between songs.** None inside any name. One comma per song gap.
+5. **No `%` codes.** If you see `%20`, `%5B`, `%7C`, you pasted an encoded string
+   into the block by mistake. Use the decoded, human-readable text here.
+6. **No backticks or prose** wrapping the block.
+
+The app is forgiving and will try to recover from a stray fence or a missing
+bracket, but a block that passes this check imports cleanly every time.
 
 ## Giving the user a ready-to-play link
 
-You do not have to make the user paste anything. The player reads a playlist from
-a `?playlist=` URL parameter, so you can hand back **one clickable link** that
-opens the app with the playlist already loaded. This is the ideal flow when a
-user says "make me a playlist of X": search YouTube, collect the bare ids,
-normalize the labels, and reply with a link they just click and press play.
+On top of the block, you can hand back **one clickable link** that opens the app
+with the playlist already loaded. The player reads a playlist from a `?playlist=`
+URL parameter, so the user just clicks and presses play. This is a nice finish
+when a user says "make me a playlist of X".
 
 Build it in three steps:
 
 1. Resolve each song to its 11-character id with the lookup procedure above
    (Invidious search, web-search fallback), and normalize each name.
 2. Assemble one bulk block: `Playlist Title, [Song Name | id, Song Name | id, ...]`.
-3. URL-encode that whole block and append it to the player URL:
+3. URL-encode that whole block **exactly once** (the `encodeURIComponent`
+   equivalent) and append it to the player URL:
 
 ```
 https://hec-ovi.github.io/music/?playlist=<URL-encoded block>
 ```
+
+Encode the block one time only. Encoding an already-encoded string is the classic
+bug that turns names into `%2520`/`%20` soup; if your link contains `%25`, you
+double-encoded it. The plain block stays human-readable; only the copy inside the
+link is encoded.
 
 The user clicks it, the playlist loads, they press play. If they already have a
 playlist with that exact name, the link is ignored rather than overwriting it, so

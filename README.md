@@ -8,7 +8,7 @@
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
-![tests: 65 passing](https://img.shields.io/badge/tests-65%20passing-black.svg)
+![tests: 72 passing](https://img.shields.io/badge/tests-72%20passing-black.svg)
 
 ![Personal Music YT Player playing a public-domain classical playlist, then a free-music sample list](docs/demo.gif)
 

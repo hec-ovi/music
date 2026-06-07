@@ -117,30 +117,67 @@ export function parseTracks(raw) {
   return tracks;
 }
 
+// A playlist title can never hold a comma or a bracket: the comma separates the
+// title from the song list, and the brackets delimit it. Scrub both (plus the
+// surrounding whitespace) so a stray one never lands in a playlist name.
+function cleanPlaylistName(value) {
+  return String(value == null ? "" : value)
+    .replace(/[[\],]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Undo URL-encoding when a blob was pasted encoded (e.g. someone copies an
+// agent's share link into the bulk box instead of opening it). Decodes up to
+// twice to also undo double-encoding, and only when the text actually carries an
+// encoded bracket or pipe, so a clean paste is never altered.
+function decodeIfEncoded(text) {
+  let out = String(text == null ? "" : text);
+  // %5B/%5D = brackets, %7C = pipe, %25 = an encoded percent (i.e. double-encoded).
+  for (let i = 0; i < 3 && /%(5[BD]|7C|25)/i.test(out); i += 1) {
+    try {
+      const next = decodeURIComponent(out);
+      if (next === out) break;
+      out = next;
+    } catch (_) {
+      break; // Malformed encoding: keep what we have.
+    }
+  }
+  return out;
+}
+
 // Bulk import format meant for AI agents and copy/paste, one playlist per line:
 //   Playlist Title, [id, https://youtu.be/id, Song Name | id]
 // A line that is just a title (no brackets) becomes an empty playlist, so the
 // bulk box doubles as the "make an empty playlist" entry point.
+//
+// Forgiving by design, because agents fumble the exact shape: a missing closing
+// bracket, code fences, and URL-encoded blobs are all recovered rather than
+// turned into a junk playlist whose name is the malformed line.
 export function parseImport(raw) {
-  const text = String(raw == null ? "" : raw);
+  const text = decodeIfEncoded(String(raw == null ? "" : raw));
   const results = [];
-  const re = /([^[\]]*?)\s*,?\s*\[([^[\]]*)\]/g;
-  text.split(/\r?\n/).forEach((line) => {
-    if (!line.trim()) return;
-    let matched = false;
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(line)) !== null) {
-      matched = true;
-      const name = m[1].replace(/,+/g, " ").trim();
-      const tracks = parseTracks(m[2]);
-      if (tracks.length) {
-        results.push({ name: name || "Imported playlist", tracks });
-      }
-    }
-    if (!matched) {
-      const name = line.replace(/,\s*$/, "").trim();
+  text.split(/\r?\n/).forEach((rawLine) => {
+    // Strip stray backticks so a ```-fenced block does not become its own line.
+    const line = rawLine.replace(/`+/g, "").trim();
+    if (!line) return;
+
+    const open = line.indexOf("[");
+    if (open === -1) {
+      // No bracket at all: a bare title makes an empty playlist.
+      const name = cleanPlaylistName(line);
       if (name) results.push({ name, tracks: [] });
+      return;
+    }
+
+    // Bracketed line: title before "[", songs inside. A missing closing "]" is
+    // tolerated by reading the songs through to the end of the line.
+    const name = cleanPlaylistName(line.slice(0, open));
+    let close = line.lastIndexOf("]");
+    if (close <= open) close = line.length;
+    const tracks = parseTracks(line.slice(open + 1, close));
+    if (tracks.length) {
+      results.push({ name: name || "Imported playlist", tracks });
     }
   });
   return results;

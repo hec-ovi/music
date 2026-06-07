@@ -168,6 +168,45 @@ describe("parseImport", () => {
   });
 });
 
+describe("parseImport recovers from common agent mistakes", () => {
+  it("tolerates a missing closing bracket (the single-song [ bug)", () => {
+    const out = parseImport("Chill, [Lofi | VIDEOID0001");
+    expect(out).toHaveLength(1);
+    expect(out[0].name).toBe("Chill"); // not "Chill, [Lofi | VIDEOID0001"
+    expect(out[0].tracks.map((t) => t.videoId)).toEqual(["VIDEOID0001"]);
+  });
+
+  it("ignores code fences wrapped around the block", () => {
+    const out = parseImport("```\nChill, [VIDEOID0001]\n```");
+    expect(out).toHaveLength(1); // no junk ``` playlists
+    expect(out[0].name).toBe("Chill");
+  });
+
+  it("decodes a URL-encoded block pasted into the bulk box", () => {
+    const out = parseImport("Chill%2C%20%5BLofi%20%7C%20VIDEOID0001%5D");
+    expect(out).toHaveLength(1);
+    expect(out[0].name).toBe("Chill");
+    expect(out[0].tracks[0]).toMatchObject({ videoId: "VIDEOID0001", label: "Lofi" });
+  });
+
+  it("decodes a double-encoded block too", () => {
+    const out = parseImport("Chill%252C%2520%255BLofi%2520%257C%2520VIDEOID0001%255D");
+    expect(out[0].name).toBe("Chill");
+    expect(out[0].tracks[0].videoId).toBe("VIDEOID0001");
+  });
+
+  it("never leaves a bracket or comma in the playlist name", () => {
+    expect(parseImport("Weird] Name, [VIDEOID0001]")[0].name).toBe("Weird Name");
+    expect(parseImport("Earth, Wind, [VIDEOID0001]")[0].name).toBe("Earth Wind");
+  });
+
+  it("leaves a clean block byte-for-byte intact", () => {
+    const out = parseImport("My Mix, [Track | VIDEOID0001, VIDEOID0002]");
+    expect(out[0].name).toBe("My Mix");
+    expect(out[0].tracks.map((t) => t.videoId)).toEqual(["VIDEOID0001", "VIDEOID0002"]);
+  });
+});
+
 describe("playlist CRUD", () => {
   let state;
   beforeEach(() => {

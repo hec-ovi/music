@@ -61,6 +61,7 @@ async function importViaBulk(user, q, text) {
 beforeEach(() => {
   localStorage.clear();
   document.body.replaceChildren();
+  window.history.pushState({}, "", "/"); // drop any ?playlist= from a prior test
 });
 
 describe("creating and filling a playlist", () => {
@@ -428,6 +429,24 @@ describe("playlist drawer editor", () => {
     expect(loadState(localStorage).playlists[0].tracks.map((track) => track.videoId)).toEqual([
       "bbbbbbbbbbb"
     ]);
+  });
+});
+
+describe("loading a shared playlist from the URL", () => {
+  it("rebuilds the playlist even when the agent double-encoded the link", async () => {
+    const block = "Shared Mix, [Lofi | VIDEOID0001, VIDEOID0002]";
+    // encodeURIComponent twice models an agent that encoded an already-encoded block.
+    const param = encodeURIComponent(encodeURIComponent(block));
+    window.history.pushState({}, "", "/?playlist=" + param);
+
+    mount();
+
+    await waitFor(() => {
+      const saved = loadState(localStorage);
+      const shared = saved.playlists.find((p) => p.name === "Shared Mix");
+      expect(shared).toBeTruthy();
+      expect(shared.tracks.map((t) => t.videoId)).toEqual(["VIDEOID0001", "VIDEOID0002"]);
+    });
   });
 });
 
