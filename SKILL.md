@@ -8,10 +8,8 @@ description: Produce a Personal Music YT Player bulk-import block so a user can 
 Personal Music YT Player is a static, browser-only YouTube playlist player. Playlists live in
 the user's own browser (localStorage); nothing is stored server-side. Your job as
 an agent is to emit a plain-text **bulk-import block** for a single playlist that
-the user pastes into the app's "Bulk import" box.
-
-You never download, host, or attach any audio or video. You only emit YouTube
-video ids. Playback happens inside YouTube's own embedded player.
+the user pastes into the app's "Bulk import" box. You only emit YouTube video ids;
+you do not attach or play media yourself.
 
 ## How users will ask you
 
@@ -194,8 +192,35 @@ Road Trip
 
 The **plain bulk block is your primary deliverable**: it is paste-ready and has
 nothing to encode, so it is the hardest thing to get wrong. The clickable link
-below is an optional bonus on top of it. Output the block only: no commentary and
-no code fences in the final answer.
+below is an optional bonus on top of it.
+
+## How to present it in your reply
+
+Put the block inside a **fenced code snippet** so the chat UI gives the user a
+one-click copy button:
+
+````
+```
+Playlist Title, [Song Name | id, Song Name | id, ...]
+```
+````
+
+If you also give the ready-to-play link, put it in its own separate code snippet.
+Keep the reply to just those: a one-line lead-in is fine, the snippet(s), done.
+
+### Leave these out of your reply
+
+They make the answer noisy or broken, so do not include them:
+
+- **No YouTube embeds or players.** Do not paste `<iframe>`s, embed codes,
+  thumbnails, or "now playing" widgets. The app does the playing; you only hand
+  over the text block.
+- **Do not echo the user's list back.** When converting a list the user gave you,
+  reply with the finished block, not a restatement of their input followed by the
+  block.
+- **No raw links inside the block.** Bare ids only (covered above).
+- **No extra prose between songs**, no per-song explanations, no track-by-track
+  commentary. The snippet speaks for itself.
 
 ## Before you send it: self-check
 
@@ -210,7 +235,7 @@ make the app reject an import or show garbled names:
 4. **Commas only between songs.** None inside any name. One comma per song gap.
 5. **No `%` codes.** If you see `%20`, `%5B`, `%7C`, you pasted an encoded string
    into the block by mistake. Use the decoded, human-readable text here.
-6. **No backticks or prose** wrapping the block.
+6. **Block is in a code snippet**, with no prose or extra lines inside the fence.
 
 The app is forgiving and will try to recover from a stray fence or a missing
 bracket, but a block that passes this check imports cleanly every time.
@@ -243,12 +268,7 @@ The user clicks it, the playlist loads, they press play. If they already have a
 playlist with that exact name, the link is ignored rather than overwriting it, so
 pick a fresh name.
 
-**The user is responsible for the content played through any link you generate.**
-Only build playlists the user asks for, and prefer free-to-use, Creative Commons,
-or public-domain sources when you can. The sample below uses NoCopyrightSounds
-tracks, which are free for anyone to use.
-
-### Worked example: a free-music sample list
+### Worked example
 
 Bulk block (bare ids, artists dropped, labels cleaned):
 
@@ -261,11 +281,3 @@ Ready-to-play link (click and press play):
 ```
 https://hec-ovi.github.io/music/?playlist=Sample%20List%2C%20%5BEyes%20On%20Us%20%7C%20CsQ59uMYB_Y%2C%20Fallen%20Angel%20%7C%20sWd8bc_LkqM%2C%20Set%20Me%20Free%20%7C%20e1QIqXmZ2os%2C%20Bad%20Pitch%20For%20You%20%7C%20UhaU1ZVu9v0%2C%20Ascend%20%7C%20ibPYPD8Hl4Q%2C%20Anesthesia%20%7C%20f59m5Pugdw4%2C%20Shotgun%20%7C%209fHjcTKV-kg%5D
 ```
-
-## Responsible use
-
-This tool is for organizing videos the user has the right to watch and embed
-(for example, their own channel's uploads, or public videos). It embeds via
-YouTube's official player and does not strip ads or download content. Only build
-playlists the user asks for, from real public/owned videos, and the user is
-responsible for what they choose to play.
