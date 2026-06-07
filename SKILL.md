@@ -7,73 +7,206 @@ description: Produce a Personal Music YT Player bulk-import block so a user can 
 
 Personal Music YT Player is a static, browser-only YouTube playlist player. Playlists live in
 the user's own browser (localStorage); nothing is stored server-side. Your job as
-an agent is to emit a plain-text **bulk-import block** that the user pastes into
-the app's "Bulk import" box.
+an agent is to emit a plain-text **bulk-import block** for a single playlist that
+the user pastes into the app's "Bulk import" box.
 
 You never download, host, or attach any audio or video. You only emit YouTube
-video ids or links. Playback happens inside YouTube's own embedded player.
+video ids. Playback happens inside YouTube's own embedded player.
+
+## How users will ask you
+
+Two shapes, same job:
+
+1. **A theme or vibe**: "make me a chill-out playlist", "build a 90s hip-hop set".
+   You choose the songs, then resolve each to a YouTube video id.
+2. **An existing list to convert**: the user pastes or attaches a list of songs
+   (a text list, an exported library, an XML/CSV of "Artist - Title" rows, etc.)
+   and wants it turned into this format. You do not invent the songs; you take
+   each entry as given and resolve it to a YouTube video id.
+
+Either way the per-song pipeline is identical: **decide the song, find its video
+id, normalize the name, emit `Name | id`.** The hard part agents get wrong is the
+id lookup, so there is a dedicated procedure for it below. Do it once per song.
 
 ## The format
 
-One playlist per line:
+Emit exactly **one playlist on one line**:
 
 ```
-Playlist Title, [item, item, item]
+Playlist Title, [Song Name | VIDEO_ID, Song Name | VIDEO_ID, Song Name | VIDEO_ID]
 ```
 
 - Everything before `[` is the playlist title. The comma before `[` is optional.
-- Items inside `[ ]` are comma-separated. Each item is one of:
-  - a bare 11-character video id, e.g. `VIDEOID0001`
-  - a full YouTube link, e.g. `https://youtu.be/VIDEOID0001` or
-    `https://www.youtube.com/watch?v=VIDEOID0001`
-  - a labeled item: `Readable Name | id-or-link`
-- A line with **just a title and no brackets** makes an empty playlist.
-- A title that matches an existing playlist is **rejected** (no merge, no
-  overwrite). Pick a new name or tell the user to rename/remove the old one.
+- Inside the `[ ]` brackets is the song list. Each song is `Song Name | VIDEO_ID`.
+- `VIDEO_ID` is a **bare 11-character YouTube id** from `A-Z a-z 0-9 _ -`, e.g.
+  `CsQ59uMYB_Y`. Nothing else.
 
-## Rules that keep it parseable
+### Only emit bare ids, never links
 
-- Never put a comma inside a title or a label. Commas only separate items. Use the
-  `|` pipe to attach a label.
-- A bare id is preferred over a long link, but both work.
-- Only emit ids you can actually verify resolve to a real, embeddable YouTube
-  video. Do not invent ids. If unsure, emit a full `watch?v=` link so the user can
-  check it.
-- Output the block only, no commentary and no code fences in the final answer.
+Do **not** emit `https://www.youtube.com/watch?v=...`, `https://youtu.be/...`,
+`youtube.com/...`, `youtu.be/...`, `/embed/`, `/shorts/`, or any other URL. The
+app accepts links when a *human* types them by hand, but at the agent level you
+output the bare 11-character id only. One id per song.
+
+### One playlist only
+
+Emit a single playlist per answer. Do not output multiple `Title, [...]` lines.
+If the user asks for several themes, ask which one they want, or fold them into one
+list. A title that matches a playlist the user already has is **rejected** by the
+app (no merge, no overwrite), so pick a fresh name.
+
+## Normalizing the song name (the label)
+
+The label before each `|` must be the **clean song name only**. Normalize every
+title you find on YouTube:
+
+1. **Drop the artist / channel.** Keep just the track name. `Artist - Song` becomes
+   `Song`.
+2. **Strip every bracketed or parenthetical tag**, e.g. `(Official Video)`,
+   `[NCS Release]`, `(Lyrics)`, `(Visualizer)`, `(prod. ...)`, `(feat. ...)`.
+3. **Remove special characters** entirely: `[ ] ( ) - . _ / \ * " ' : ; ! ?` and
+   any other punctuation. The label must contain letters, numbers, and spaces only.
+4. **Compact it.** Collapse runs of spaces, trim the ends, and use plain
+   Title Case. Short and readable beats verbatim.
+
+Never let a label contain a comma, a `|`, a `[`, or a `]`. Those characters break
+the parser. Removing special characters in step 3 already takes care of this.
+
+As a safety net the app also strips stray punctuation from any name it stores, and
+when you pass a bare id with no `Label |`, it auto-names that track from the
+YouTube video title (punctuation removed). Do not lean on this: still emit clean,
+artist-free names yourself so the user sees exactly what you intend.
+
+### Normalization examples
+
+| Raw YouTube title                                  | Label you emit   |
+| -------------------------------------------------- | ---------------- |
+| `2frers - EYES ON US`                              | `Eyes On Us`     |
+| `NAVARA - FALLEN ANGEL (Official Visualizer)`     | `Fallen Angel`   |
+| `Oxlo - Anesthesia [NCS Release]`                 | `Anesthesia`     |
+| `Pat - Shotgun.`                                  | `Shotgun`        |
+| `Sano - SET ME FREE (Lyrics)`                     | `Set Me Free`    |
+| `ruindkid - Bad Pitch For You (prod. xyz)`        | `Bad Pitch For You` |
+| `Earth, Wind & Fire - September (Official Audio)` | `September`      |
+
+The last row is the one that matters most: the raw title has a **comma** in it.
+A comma is the song separator, so it can never appear inside a label. Drop the
+artist and the tags and you are left with `September`, comma gone. If you ever
+keep a comma in a name, the app reads it as the start of the next song and your
+list breaks.
+
+## Finding the video id for each song
+
+This is the step agents get wrong: they fan out several web searches per song, get
+lost in results, or paste the wrong id. Treat every song as **one lookup that
+returns exactly one id**, and resolve one song at a time.
+
+### Build the query
+
+Put the artist and title **together** in the search query, even though the emitted
+label drops the artist. Append `official audio` to bias toward the canonical upload
+instead of live clips, covers, or reactions:
+
+```
+<artist> <title> official audio
+```
+
+### Preferred: the Invidious search API (one HTTP call per song)
+
+Invidious is an open-source YouTube front end. Its search endpoint returns the
+real, canonical 11-character YouTube `videoId` as JSON, so you get the id in a
+single call instead of scraping a results page or guessing:
+
+```
+GET https://<instance>/api/v1/search?q=<url-encoded query>&type=video&sort=relevance
+```
+
+Take the **first** video result's `videoId`. Each result object also has `title`,
+`author`, and `lengthSeconds`, so you can sanity-check the hit (the title contains
+the song; the length is a few minutes, not 1 second or 3 hours). For free or
+reusable music, add `&features=creative_commons` to the query.
+
+Verified high-uptime public instances (as of mid-2026):
+
+- `https://inv.nadeko.net`
+- `https://invidious.nerdvpn.de`
+- `https://invidious.f5.si`
+
+Public instances are community-run, so they can be slow, rate-limit you, or return
+`403`/timeouts with no warning. That is expected, not a bug in your query: if one
+instance fails, try the next. The current ranked list lives at
+`https://api.invidious.io` and `https://docs.invidious.io/instances/` if all three
+above are down.
+
+Illustrative flow (the ids below are the repo's real NCS sample tracks):
+
+```
+GET https://inv.nadeko.net/api/v1/search?q=2frers%20eyes%20on%20us%20official%20audio&type=video
+first result -> videoId: CsQ59uMYB_Y
+emit         -> Eyes On Us | CsQ59uMYB_Y
+```
+
+### Fallback: one targeted web search
+
+If Invidious is unreachable or returns nothing matching, do **one** ordinary web
+search with the same `<artist> <title> official audio` query, open the first
+`youtube.com/watch?v=` or `youtu.be/` result, and read the id out of the URL. One
+search per song: do not loop through many searches hoping for a better hit. The top
+result for a specific "artist title" query is almost always the right video, which
+is exactly why a single lookup is enough.
+
+### Validate before you emit
+
+Every id must match `^[A-Za-z0-9_-]{11}$`: exactly 11 characters, letters, digits,
+`-` and `_` only. If what you extracted is longer, shorter, or has other
+characters, you grabbed a playlist id or a stray URL fragment, not a video id.
+Discard it and re-resolve.
+
+### If a song cannot be resolved
+
+Never invent an id (an invented id plays nothing). If you truly cannot find a real
+id after the API plus one web search, **skip that song** and list the skipped
+titles to the user *outside* the block, never inside it.
+
+## How the commas work
+
+The comma is the **only** separator, and it separates songs and nothing else:
+
+- One comma between each `Song Name | VIDEO_ID` pair.
+- Never put a comma inside a label (that is why you strip punctuation above).
+- The single optional comma before `[` separates the title from the list.
+
+So a comma always means "next song starts here."
 
 ## Examples
 
-One playlist, mixed item shapes:
+A finished block (bare ids, clean labels, one line):
 
 ```
-Late Night Coding, [Lofi beat | VIDEOID0001, VIDEOID0002, https://youtu.be/VIDEOID0003]
+Late Night Coding, [Eyes On Us | CsQ59uMYB_Y, Fallen Angel | sWd8bc_LkqM, Anesthesia | f59m5Pugdw4]
 ```
 
-Several playlists at once:
-
-```
-Morning Focus, [Deep work | VIDEOID0001, VIDEOID0002]
-Workout, [VIDEOID0003, https://www.youtube.com/watch?v=VIDEOID0004]
-```
-
-An empty playlist the user will fill later:
+An empty playlist the user will fill later (title only, no brackets):
 
 ```
 Road Trip
 ```
+
+Output the block only: no commentary and no code fences in the final answer.
 
 ## Giving the user a ready-to-play link
 
 You do not have to make the user paste anything. The player reads a playlist from
 a `?playlist=` URL parameter, so you can hand back **one clickable link** that
 opens the app with the playlist already loaded. This is the ideal flow when a
-user says "make me a playlist of X" — search YouTube, collect the ids, and reply
-with a link they just click and press play.
+user says "make me a playlist of X": search YouTube, collect the bare ids,
+normalize the labels, and reply with a link they just click and press play.
 
 Build it in three steps:
 
-1. Find the videos on YouTube and collect their 11-character ids.
-2. Assemble one bulk block: `Playlist Title, [Label | id, Label | id, ...]`.
+1. Resolve each song to its 11-character id with the lookup procedure above
+   (Invidious search, web-search fallback), and normalize each name.
+2. Assemble one bulk block: `Playlist Title, [Song Name | id, Song Name | id, ...]`.
 3. URL-encode that whole block and append it to the player URL:
 
 ```
@@ -91,16 +224,16 @@ tracks, which are free for anyone to use.
 
 ### Worked example: a free-music sample list
 
-Bulk block:
+Bulk block (bare ids, artists dropped, labels cleaned):
 
 ```
-Sample List, [2frers - EYES ON US | CsQ59uMYB_Y, NAVARA - FALLEN ANGEL | sWd8bc_LkqM, Sano - SET ME FREE | e1QIqXmZ2os, ruindkid - Bad Pitch For You | UhaU1ZVu9v0, KORZIX - ascend | ibPYPD8Hl4Q, Oxlo - Anesthesia | f59m5Pugdw4, Pat - Shotgun | 9fHjcTKV-kg]
+Sample List, [Eyes On Us | CsQ59uMYB_Y, Fallen Angel | sWd8bc_LkqM, Set Me Free | e1QIqXmZ2os, Bad Pitch For You | UhaU1ZVu9v0, Ascend | ibPYPD8Hl4Q, Anesthesia | f59m5Pugdw4, Shotgun | 9fHjcTKV-kg]
 ```
 
 Ready-to-play link (click and press play):
 
 ```
-https://hec-ovi.github.io/music/?playlist=Sample%20List%2C%20%5B2frers%20-%20EYES%20ON%20US%20%7C%20CsQ59uMYB_Y%2C%20NAVARA%20-%20FALLEN%20ANGEL%20%7C%20sWd8bc_LkqM%2C%20Sano%20-%20SET%20ME%20FREE%20%7C%20e1QIqXmZ2os%2C%20ruindkid%20-%20Bad%20Pitch%20For%20You%20%7C%20UhaU1ZVu9v0%2C%20KORZIX%20-%20ascend%20%7C%20ibPYPD8Hl4Q%2C%20Oxlo%20-%20Anesthesia%20%7C%20f59m5Pugdw4%2C%20Pat%20-%20Shotgun%20%7C%209fHjcTKV-kg%5D
+https://hec-ovi.github.io/music/?playlist=Sample%20List%2C%20%5BEyes%20On%20Us%20%7C%20CsQ59uMYB_Y%2C%20Fallen%20Angel%20%7C%20sWd8bc_LkqM%2C%20Set%20Me%20Free%20%7C%20e1QIqXmZ2os%2C%20Bad%20Pitch%20For%20You%20%7C%20UhaU1ZVu9v0%2C%20Ascend%20%7C%20ibPYPD8Hl4Q%2C%20Anesthesia%20%7C%20f59m5Pugdw4%2C%20Shotgun%20%7C%209fHjcTKV-kg%5D
 ```
 
 ## Responsible use

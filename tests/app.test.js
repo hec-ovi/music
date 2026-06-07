@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { within } from "@testing-library/dom";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { within, waitFor } from "@testing-library/dom";
 import userEvent from "@testing-library/user-event";
 import { initApp } from "../app.js";
 import { loadState } from "../store.js";
@@ -273,6 +273,22 @@ describe("reordering and removing", () => {
     const order = [...root.querySelectorAll(".track-source")].map((n) => n.textContent);
     expect(order).toEqual(["bbbbbbbbbbb", "ccccccccccc"]);
   });
+
+  it("pins the drag image to the dragged row so the footer is not dragged along", async () => {
+    const { root } = await setup();
+    const row = root.querySelectorAll(".track")[0];
+    const setDragImage = vi.fn();
+    const dataTransfer = { effectAllowed: "", setData: vi.fn(), setDragImage };
+
+    const event = new Event("dragstart", { bubbles: true });
+    Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+    row.dispatchEvent(event);
+
+    expect(setDragImage).toHaveBeenCalledTimes(1);
+    // The ghost is exactly this row element, nothing larger (e.g. the player dock).
+    expect(setDragImage.mock.calls[0][0]).toBe(row);
+    expect(row.classList.contains("dragging")).toBe(true);
+  });
 });
 
 describe("bulk import", () => {
@@ -353,6 +369,22 @@ describe("bulk import", () => {
     await user.click(q.getByRole("button", { name: "Close" }));
     expect(root.querySelector("#modal").hidden).toBe(true);
   });
+
+  it("keeps the modal open when the backdrop is clicked (only the X/Cancel closes it)", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    await user.click(q.getByRole("button", { name: "Import format help" }));
+    const modalEl = root.querySelector("#modal");
+    expect(modalEl.hidden).toBe(false);
+
+    // Releasing a drag-selection outside the card lands a click on the backdrop.
+    // That must not dismiss the modal.
+    modalEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(modalEl.hidden).toBe(false);
+
+    await user.click(q.getByRole("button", { name: "Close" }));
+    expect(modalEl.hidden).toBe(true);
+  });
 });
 
 describe("playlist collapse", () => {
@@ -396,6 +428,46 @@ describe("playlist drawer editor", () => {
     expect(loadState(localStorage).playlists[0].tracks.map((track) => track.videoId)).toEqual([
       "bbbbbbbbbbb"
     ]);
+  });
+});
+
+describe("auto-naming from the YouTube title", () => {
+  afterEach(() => {
+    delete global.fetch;
+  });
+
+  it("names an unlabeled track after its title, stripping the comma and punctuation", async () => {
+    const user = userEvent.setup();
+    // A real oembed title with a comma, which must never survive into the name.
+    const rawTitle = "Earth, Wind & Fire - September (Official Audio)";
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ title: rawTitle }) })
+    );
+
+    const { root, q } = mount({ resolveTitles: true });
+    await importViaBulk(user, q, "Disco, [VIDEOID0001]");
+
+    await waitFor(() => {
+      const track = loadState(localStorage).playlists[0].tracks[0];
+      expect(track.label).toBe("Earth Wind Fire September Official Audio");
+      expect(track.youtubeTitle).toBe(rawTitle); // raw title kept for the source line
+    });
+    expect(global.fetch).toHaveBeenCalled();
+  });
+
+  it("never overwrites a label the user supplied with the fetched title", async () => {
+    const user = userEvent.setup();
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ title: "Some Other Title" }) })
+    );
+
+    const { root, q } = mount({ resolveTitles: true });
+    await importViaBulk(user, q, "Named, [My Song | VIDEOID0001]");
+
+    await waitFor(() => {
+      expect(loadState(localStorage).playlists[0].tracks[0].youtubeTitle).toBe("Some Other Title");
+    });
+    expect(loadState(localStorage).playlists[0].tracks[0].label).toBe("My Song");
   });
 });
 

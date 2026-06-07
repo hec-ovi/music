@@ -14,7 +14,8 @@ import {
   renameTrack,
   moveTrack,
   importPlaylists,
-  playlistToBulkText
+  playlistToBulkText,
+  normalizeLabel
 } from "./store.js";
 
 const ICONS = {
@@ -406,9 +407,9 @@ function createModalController(els) {
   }
   els.modalCancel.addEventListener("click", dismiss);
   els.modalClose.addEventListener("click", dismiss);
-  els.modal.addEventListener("click", (event) => {
-    if (event.target === els.modal) finish(active && active.type === "prompt" ? null : false);
-  });
+  // No backdrop-click-to-close: selecting text inside a field and releasing the
+  // mouse outside the card fires a click on the backdrop and would wrongly close
+  // the modal. Use the close (X) or Cancel button instead.
   els.modal.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -1104,6 +1105,15 @@ export function initApp(options) {
         if (event.dataTransfer) {
           event.dataTransfer.effectAllowed = "move";
           event.dataTransfer.setData("text/plain", String(index));
+          // Pin the drag ghost to just this row. Without an explicit drag image
+          // the browser can snapshot a larger region (e.g. the player footer
+          // underneath), so the row looks like it drags glued to the dock.
+          if (typeof event.dataTransfer.setDragImage === "function") {
+            const rect = row.getBoundingClientRect();
+            const offsetX = (event.clientX || 0) - rect.left;
+            const offsetY = (event.clientY || 0) - rect.top;
+            event.dataTransfer.setDragImage(row, offsetX, offsetY);
+          }
         }
       });
       row.addEventListener("dragend", () => row.classList.remove("dragging"));
@@ -1373,10 +1383,16 @@ export function initApp(options) {
         .then((response) => (response.ok ? response.json() : null))
         .then((data) => {
           if (!data || !data.title) return;
+          const rawTitle = String(data.title).trim();
+          const nameFromTitle = normalizeLabel(rawTitle);
           state.playlists.forEach((playlist) => {
             playlist.tracks.forEach((item) => {
-              if (item.videoId === track.videoId && !item.youtubeTitle) {
-                item.youtubeTitle = String(data.title).trim();
+              if (item.videoId !== track.videoId) return;
+              if (!item.youtubeTitle) item.youtubeTitle = rawTitle;
+              // Only auto-name tracks the user never labeled (label still the id),
+              // so a real name typed or imported is never overwritten.
+              if (item.label === item.videoId && nameFromTitle) {
+                item.label = nameFromTitle;
               }
             });
           });

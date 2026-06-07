@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   extractVideoId,
+  normalizeLabel,
   parseTrackToken,
   parseTracks,
   parseImport,
@@ -49,7 +50,35 @@ describe("extractVideoId", () => {
   });
 });
 
+describe("normalizeLabel", () => {
+  it("removes commas, the most important separator, from a name", () => {
+    expect(normalizeLabel("Hello, Goodbye")).toBe("Hello Goodbye");
+    expect(normalizeLabel("Earth, Wind, and Fire")).toBe("Earth Wind and Fire");
+  });
+
+  it("strips dots, brackets, pipes and other punctuation/symbols", () => {
+    expect(normalizeLabel("Anesthesia [NCS Release]")).toBe("Anesthesia NCS Release");
+    expect(normalizeLabel("Song. (Official) | extra")).toBe("Song Official extra");
+    expect(normalizeLabel("2frers - EYES ON US")).toBe("2frers EYES ON US");
+  });
+
+  it("keeps letters of any language and numbers, collapsing spaces", () => {
+    expect(normalizeLabel("  Café   del   Mar 2  ")).toBe("Café del Mar 2");
+  });
+});
+
 describe("parseTrackToken", () => {
+  it("strips a comma and other punctuation from an explicit label", () => {
+    expect(parseTrackToken("Set Me Free, Radio Edit. | VIDEOID0001")).toMatchObject({
+      videoId: "VIDEOID0001",
+      label: "Set Me Free Radio Edit"
+    });
+  });
+
+  it("keeps the bare id as the label (underscores/dashes intact) when unnamed", () => {
+    expect(parseTrackToken("CsQ59uMYB_Y").label).toBe("CsQ59uMYB_Y");
+  });
+
   it("returns id + default label", () => {
     expect(parseTrackToken("VIDEOID0001")).toMatchObject({
       videoId: "VIDEOID0001",
@@ -168,6 +197,13 @@ describe("playlist CRUD", () => {
     expect(p.tracks[1].label).toBe("Middle");
     expect(removeTrack(state, p.id, 0)).toBe(true);
     expect(p.tracks.map((t) => t.videoId)).toEqual(["VIDEOID0003", "VIDEOID0002"]);
+  });
+
+  it("strips a comma and punctuation when renaming a track", () => {
+    const p = createPlaylist(state, "Test");
+    addTracks(state, p.id, "VIDEOID0001");
+    expect(renameTrack(state, p.id, 0, "Hello, World. Mix")).toBe(true);
+    expect(p.tracks[0].label).toBe("Hello World Mix");
   });
 
   it("moves tracks into a new order with clamping", () => {

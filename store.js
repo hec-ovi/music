@@ -17,11 +17,25 @@ function cleanText(value) {
   return String(value == null ? "" : value).trim();
 }
 
+// Strip punctuation and symbols from a display name so labels stay parseable
+// (no commas, dots, brackets, or pipes to confuse the bulk format) and read
+// cleanly. Keeps letters of any language, numbers, and collapses runs of space.
+export function normalizeLabel(value) {
+  return String(value == null ? "" : value)
+    .replace(/[\p{P}\p{S}]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function makeTrack(videoId, label, extra = {}) {
   const title = cleanText(extra.youtubeTitle);
+  // A label that is just the id is the "no name yet" placeholder, so keep the id
+  // verbatim (it carries _ and - that normalization would otherwise strip).
+  const raw = cleanText(label);
+  const cleaned = raw && raw !== videoId ? normalizeLabel(raw) : "";
   return {
     videoId,
-    label: cleanText(label) || videoId,
+    label: cleaned || videoId,
     url: youtubeWatchUrl(videoId),
     thumbnailUrl: youtubeThumbnailUrl(videoId),
     youtubeTitle: title
@@ -293,7 +307,7 @@ export function removeTrack(state, id, index) {
 export function renameTrack(state, id, index, label) {
   const playlist = getPlaylist(state, id);
   if (!playlist || index < 0 || index >= playlist.tracks.length) return false;
-  const next = String(label == null ? "" : label).trim();
+  const next = normalizeLabel(label);
   playlist.tracks[index].label = next || playlist.tracks[index].videoId;
   return true;
 }

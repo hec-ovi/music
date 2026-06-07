@@ -559,6 +559,10 @@ svg {
   background: linear-gradient(90deg, rgba(181, 65, 39, 0.76), rgba(181, 65, 39, 0.4));
 }
 
+.track.dragging {
+  opacity: 0.4;
+}
+
 .track-thumb-button {
   width: 54px;
   height: 54px;

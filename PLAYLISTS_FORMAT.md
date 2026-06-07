@@ -53,23 +53,31 @@ First Playlist, [Track one | VIDEOID0001, Track two | VIDEOID0002, https://youtu
 Second Playlist, [VIDEOID0004, https://www.youtube.com/watch?v=VIDEOID0005, Track three | VIDEOID0006]
 ```
 
-## Prompt template for an AI agent
+## For AI agents
 
-> You are building a Personal Music YT Player import block. I will give you a theme or a list
-> of song names. For each song, find its YouTube video and output the 11-character
-> video id (or a full YouTube link). Return exactly this format, one playlist per
+Agents have tighter rules than the human Add field above. The full agent guide is
+[`SKILL.md`](SKILL.md); the short version:
+
+- **One playlist per answer**, on one line.
+- **Bare 11-character ids only**, never links. Links are a convenience for a human
+  typing into the Add field, not for agent output.
+- **Clean the name.** Drop the artist, strip bracketed tags and all punctuation,
+  and keep a compact song name. Letters, numbers, and spaces only.
+- **The comma is the only separator** and separates songs, nothing else. A comma
+  must never appear inside a name (it would start a new song). Example: a raw
+  title `Earth, Wind & Fire - September (Official Audio)` becomes the label
+  `September`.
+
+### Prompt template for an AI agent
+
+> You are building a Personal Music YT Player import block. I will give you a theme
+> or a list of song names. For each song, find its YouTube video and output its
+> bare 11-character video id. Return exactly this format, a single playlist on one
 > line, nothing else:
 >
 > `Playlist Title, [Song Name | VIDEO_ID, Song Name | VIDEO_ID, ...]`
 >
-> Use the real song title as the label before each `|`. Do not invent ids; only
-> use ids you can verify resolve to a real YouTube video. No commentary, no code
-> fences in the final answer.
-
-### Notes for the agent
-
-- Never put a comma inside a label or title (commas separate items). Use the `|`
-  pipe to attach a label.
-- A bare id is preferred over a long link, but both work.
-- If you are unsure of an id, prefer a full `https://www.youtube.com/watch?v=...`
-  link so the user can verify it.
+> For each label, use the clean song name only: drop the artist, remove bracketed
+> tags, and strip every comma, dot, and other punctuation (letters, numbers, and
+> spaces only). The comma only separates songs. Do not invent ids; only use ids you
+> can verify resolve to a real YouTube video. No commentary, no code fences.
