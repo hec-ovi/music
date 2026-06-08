@@ -12,7 +12,16 @@
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
 ![tests: 84 passing](https://img.shields.io/badge/tests-84%20passing-black.svg)
 
-![Personal Music YT Player playing a public-domain classical playlist, then a free-music sample list](docs/demo.gif)
+<table>
+  <tr>
+    <td width="50%"><img src="docs/demo_redesign.gif" alt="Redesigned hero and player UI"></td>
+    <td width="50%"><img src="docs/demo.gif" alt="Playing a public-domain classical playlist, then a free-music sample list"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Redesigned hero and player</sub></td>
+    <td align="center"><sub>Building and playing a list</sub></td>
+  </tr>
+</table>
 
 A static, no-backend YouTube playlist player. The page can be public, but your
 playlists never are: they live only in your browser's `localStorage`, not in this
