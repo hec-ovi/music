@@ -165,7 +165,7 @@ svg {
   grid-template-columns: minmax(172px, 26vh) minmax(0, 1fr) minmax(164px, 270px);
   align-items: stretch;
   gap: clamp(14px, 3vw, 42px);
-  padding: 0 clamp(22px, 4vw, 58px) 0 0;
+  padding: 0 clamp(8px, 1.5vw, 14px) 0 0;
   overflow: hidden;
   border-bottom: 1px solid var(--line-soft);
 }
@@ -269,11 +269,26 @@ svg {
 }
 
 .hero-subtitle {
+  display: inline-block;
+  max-width: min(100%, 740px);
   margin: 8px auto 0;
-  max-width: 740px;
   color: var(--muted);
   font-size: clamp(0.84rem, 1.1vw, 0.96rem);
-  overflow-wrap: anywhere;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.hero-subtitle:hover {
+  color: var(--accent-2);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.hero-subtitle[aria-disabled="true"] {
+  pointer-events: none;
 }
 
 .hero-transport {
@@ -281,15 +296,38 @@ svg {
   margin-top: 22px;
 }
 
+/* Pinned to the hero's bottom-right corner. Absolute (not grid-aligned) so a
+   long, wrapping song title can never push these out of the clipped hero band. */
 .hero-actions {
+  position: absolute;
+  right: clamp(8px, 1.5vw, 14px);
+  bottom: clamp(8px, 1.5vw, 14px);
+  z-index: 2;
   display: grid;
-  align-self: end;
-  justify-items: center;
-  padding-bottom: clamp(20px, 4vh, 46px);
+  justify-items: end;
 }
 
 .hero-tools {
-  justify-content: center;
+  justify-content: flex-end;
+}
+
+.hero-tool-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: rgba(18, 17, 16, 0.84);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.hero-tool-button:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--ink);
 }
 
 .hero-play {
@@ -320,16 +358,30 @@ svg {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 300px);
   gap: 14px;
-  align-items: end;
-  padding: 16px clamp(16px, 3vw, 30px) 12px;
+  align-items: center;
+  padding: 14px 14px 14px clamp(16px, 3vw, 30px);
   border-bottom: 1px solid var(--line-soft);
 }
 
+/* input. prefix so these beat the shared `.field` radius regardless of order. */
+input.search-field {
+  border-radius: 0;
+}
+
 .queue-title {
-  color: var(--accent-2);
+  color: var(--ink);
   font-size: 1.2rem;
   font-weight: 850;
   overflow-wrap: anywhere;
+}
+
+.queue-kicker {
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.queue-name {
+  color: var(--accent-2);
 }
 
 .queue-count,
@@ -346,13 +398,21 @@ svg {
 }
 
 .add-form {
-  padding: 12px clamp(16px, 3vw, 30px);
+  position: relative;
+  display: block;
+  /* Equal space on every side around the input. */
+  padding: 12px;
   border-bottom: 1px solid var(--line-soft);
   background: rgba(18, 17, 16, 0.52);
 }
 
-.add-form .field {
-  flex: 1 1 auto;
+/* Square left corners, fully rounded right side so the input visually wraps the
+   circular submit button tucked into its trailing edge. The input. prefix lifts
+   specificity above the shared `.field` radius defined later in the file. */
+input.add-field {
+  width: 100%;
+  border-radius: 0 999px 999px 0;
+  padding-right: 52px;
 }
 
 .field,
@@ -391,6 +451,16 @@ svg {
   border-color: var(--line-soft);
   background: rgba(18, 17, 16, 0.84);
   color: var(--ink);
+}
+
+.add-form .add-submit {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
 }
 
 .import {
@@ -886,7 +956,7 @@ svg {
   gap: 0;
   align-content: start;
   min-height: 0;
-  overflow: auto;
+  overflow-y: scroll; /* scrollbar always present, not just on overflow */
   padding: 0;
   background: rgba(0, 0, 0, 0.28);
 }
@@ -898,26 +968,70 @@ svg {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.playlist-drawer .playlist-tab {
-  align-self: start;
-  grid-template-columns: 70px minmax(0, 1fr);
-  min-height: 88px;
-  width: 100%;
-  padding: 10px;
-  border: 0;
-  border-radius: 0;
+/* The header row carries the background, so the colour of a selected row spans
+   the whole row, title and controls alike. */
+.drawer-playlist-head {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
   background: rgba(18, 17, 16, 0.94);
 }
 
-.playlist-drawer .playlist-tab.active {
+/* Rollover is a white row with black text (not the selected orange). */
+.drawer-playlist-head:hover {
+  background: #fff;
+}
+
+.drawer-playlist-head:hover .playlist-tab,
+.drawer-playlist-head:hover .playlist-tab strong {
+  color: #111;
+}
+
+.drawer-playlist-head:hover .playlist-tab span span {
+  color: #333;
+}
+
+.drawer-playlist-card.selected .drawer-playlist-head {
   background:
     linear-gradient(90deg, rgba(181, 65, 39, 0.58), rgba(181, 65, 39, 0.22) 78%),
     rgba(255, 255, 255, 0.04);
   box-shadow: inset 4px 0 0 var(--accent);
 }
 
-.playlist-drawer .playlist-tab.expanded {
+.drawer-playlist-card.open .drawer-playlist-head {
   box-shadow: inset 4px 0 0 var(--accent-2);
+}
+
+/* White rollover wins over the orange selected background too. */
+.drawer-playlist-card.selected .drawer-playlist-head:hover {
+  background: #fff;
+}
+
+.drawer-playlist-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 0 8px;
+}
+
+.playlist-drawer .playlist-tab {
+  flex: 1 1 auto;
+  align-self: stretch;
+  grid-template-columns: 70px minmax(0, 1fr);
+  min-height: 88px;
+  min-width: 0;
+  padding: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent; /* the head supplies the row colour */
+}
+
+/* The whole row is the hover/selection surface, so the tab itself stays flat. */
+.playlist-drawer .playlist-tab:hover {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
 }
 
 .playlist-drawer .playlist-thumb {
@@ -937,23 +1051,10 @@ svg {
   background: rgba(0, 0, 0, 0.34);
 }
 
-.drawer-detail-toolbar,
-.drawer-detail-actions,
 .drawer-track-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.drawer-detail-toolbar {
-  justify-content: space-between;
-}
-
-.drawer-detail-title {
-  color: var(--accent-2);
-  font-size: 0.82rem;
-  font-weight: 900;
-  text-transform: uppercase;
 }
 
 .drawer-icon-button {
@@ -966,6 +1067,21 @@ svg {
   color: #ef957e;
 }
 
+/* Header controls sit on the selected row's orange, so give them a translucent
+   dark chip and a darker hover (the default orange hover would vanish there). */
+.drawer-playlist-controls .drawer-icon-button {
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.drawer-playlist-controls .drawer-icon-button:hover {
+  background: rgba(0, 0, 0, 0.58);
+  color: var(--ink);
+}
+
+.drawer-playlist-controls .drawer-icon-button.danger:hover {
+  color: #ffb4a1;
+}
+
 .drawer-add-track-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 42px;
@@ -976,7 +1092,7 @@ svg {
   display: grid;
   gap: 1px;
   max-height: min(38vh, 330px);
-  overflow: auto;
+  overflow-y: scroll; /* scrollbar always present */
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -1050,7 +1166,10 @@ svg {
 
 .player-dock {
   display: grid;
-  grid-template-columns: minmax(220px, 340px) minmax(260px, 1fr) minmax(210px, 330px) auto;
+  /* Seek bar takes the lion's share of the slack; the options column stays
+     flexible too so the volume slider stretches from the eye icon toward the
+     status box with no dead gaps. Status is content-width. */
+  grid-template-columns: minmax(190px, 280px) minmax(220px, 1fr) minmax(200px, 360px) auto;
   gap: 18px;
   align-items: center;
   padding: 12px clamp(14px, 3vw, 30px);
@@ -1179,7 +1298,8 @@ input[type="range"] {
 .volume {
   display: flex;
   align-items: center;
-  width: 96px;
+  flex: 1 1 auto;
+  min-width: 90px;
 }
 
 .status-line {
@@ -1295,6 +1415,135 @@ input[type="range"] {
   color: var(--ink);
 }
 
+.help-card {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  width: min(480px, 100%);
+  padding: 20px 22px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  box-shadow: inset 4px 0 0 var(--accent-2), var(--shadow);
+}
+
+.help-card h2 {
+  margin: 0;
+  padding-right: 36px;
+  font-size: 1.1rem;
+}
+
+.help-intro {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.help-intro strong {
+  color: var(--ink);
+}
+
+.help-intro code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--accent-2);
+  font-size: 0.82rem;
+}
+
+/* Snippet box for copy-paste-ready examples in the bulk-import help modal. */
+.help-snippet {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--accent-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.help-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-steps li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
+.help-steps strong {
+  color: var(--ink);
+}
+
+.help-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.help-keys-title {
+  margin-bottom: -4px;
+  color: var(--accent-2);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.help-keys {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 16px;
+}
+
+.help-key {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.key {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  background: linear-gradient(180deg, #2c2925, #161412);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.key-wide {
+  min-width: 64px;
+}
+
 .tooltip {
   position: fixed;
   z-index: 80;
@@ -1359,6 +1608,7 @@ input[type="range"] {
   }
 
   .hero-actions {
+    position: static;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;

@@ -62,6 +62,12 @@ beforeEach(() => {
   localStorage.clear();
   document.body.replaceChildren();
   window.history.pushState({}, "", "/"); // drop any ?playlist= from a prior test
+  // Stop any tab-title marquee a prior test left scrolling.
+  if (window.__musicTitleTimer) {
+    clearInterval(window.__musicTitleTimer);
+    window.__musicTitleTimer = null;
+  }
+  document.title = "";
 });
 
 describe("creating and filling a playlist", () => {
@@ -138,16 +144,16 @@ describe("playback", () => {
 
   it("advances with Next and wraps with loop on", async () => {
     const { user, fake, root } = await setup();
-    await user.click(root.querySelector("#next-button"));
+    await user.click(root.querySelector("#hero-next"));
     expect(fake.calls.load.at(-1)).toBe("bbbbbbbbbbb");
-    await user.click(root.querySelector("#next-button"));
-    await user.click(root.querySelector("#next-button")); // from 3rd wraps to 1st
+    await user.click(root.querySelector("#hero-next"));
+    await user.click(root.querySelector("#hero-next")); // from 3rd wraps to 1st
     expect(fake.calls.load.at(-1)).toBe("aaaaaaaaaaa");
   });
 
   it("toggles play/pause through the fake player", async () => {
     const { user, fake, root } = await setup();
-    const play = root.querySelector("#play-button");
+    const play = root.querySelector("#hero-play");
     await user.click(play); // loads first track, playing
     expect(play.textContent).toBe("Pause");
     await user.click(play); // pause
@@ -157,8 +163,8 @@ describe("playback", () => {
 
   it("stops and resets the seek bar", async () => {
     const { user, fake, root } = await setup();
-    await user.click(root.querySelector("#play-button"));
-    await user.click(root.querySelector("#stop-button"));
+    await user.click(root.querySelector("#hero-play"));
+    await user.click(root.querySelector("#hero-stop"));
     expect(fake.calls.stop).toBe(1);
     expect(root.querySelector("#seek").value).toBe("0");
     expect(root.querySelector("#status-text").textContent).toBe("Stopped");
@@ -166,7 +172,7 @@ describe("playback", () => {
 
   it("updates the timeline from player time callbacks", async () => {
     const { user, fake, root } = await setup();
-    await user.click(root.querySelector("#play-button")); // create the player
+    await user.click(root.querySelector("#hero-play")); // create the player
     fake.time(42, 200);
     expect(root.querySelector("#time-current").textContent).toBe("0:42");
     expect(root.querySelector("#time-total").textContent).toBe("3:20");
@@ -175,7 +181,7 @@ describe("playback", () => {
 
   it("auto-advances to the next track when one ends", async () => {
     const { user, fake, root } = await setup();
-    await user.click(root.querySelector("#play-button")); // play track 1
+    await user.click(root.querySelector("#hero-play")); // play track 1
     fake.fire("ended");
     expect(fake.calls.load.at(-1)).toBe("bbbbbbbbbbb");
     expect(root.querySelector("#now-title").textContent).toBe("bbbbbbbbbbb");
@@ -189,16 +195,16 @@ describe("playback", () => {
     await importViaBulk(user, q, "B, [bbbbbbbbbbb]");
 
     await user.click(q.getByRole("button", { name: /A 1 track/ }));
-    await user.click(root.querySelector("#play-button"));
+    await user.click(root.querySelector("#hero-play"));
     fake.time(42, 120);
     expect(fake.calls.load.at(-1)).toBe("aaaaaaaaaaa");
-    expect(root.querySelector("#play-button").textContent).toBe("Pause");
+    expect(root.querySelector("#hero-play").textContent).toBe("Pause");
 
     await user.click(q.getByRole("button", { name: /B 1 track/ }));
     expect(fake.calls.stop).toBeGreaterThan(0);
     expect(fake.calls.cue.at(-1)).toBe("bbbbbbbbbbb");
     expect(root.querySelector("#now-title").textContent).toBe("bbbbbbbbbbb");
-    expect(root.querySelector("#play-button").textContent).toBe("Play");
+    expect(root.querySelector("#hero-play").textContent).toBe("Play");
     expect(root.querySelector("#seek").value).toBe("0");
   });
 
@@ -228,15 +234,15 @@ describe("playback", () => {
     root.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
     expect(fake.calls.play).toBe(0);
     expect(fake.calls.load).toEqual([]);
-    expect(root.querySelector("#play-button").textContent).toBe("Play");
+    expect(root.querySelector("#hero-play").textContent).toBe("Play");
 
     // Start playback explicitly; space then pauses and resumes with no reload.
-    await user.click(root.querySelector("#play-button"));
+    await user.click(root.querySelector("#hero-play"));
     const loads = fake.calls.load.length;
     root.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
-    expect(root.querySelector("#play-button").textContent).toBe("Play");
+    expect(root.querySelector("#hero-play").textContent).toBe("Play");
     root.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
-    expect(root.querySelector("#play-button").textContent).toBe("Pause");
+    expect(root.querySelector("#hero-play").textContent).toBe("Pause");
     expect(fake.calls.load.length).toBe(loads);
   });
 });
@@ -338,15 +344,17 @@ describe("bulk import", () => {
     expect(root.querySelector("#import-status").textContent).toMatch(/already exist/);
   });
 
-  it("opens a help modal explaining the format and the title-only rule", async () => {
+  it("opens the bulk import format modal with snippet examples", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     await user.click(q.getByRole("button", { name: "Import format help" }));
-    expect(q.getByRole("dialog")).toBeTruthy();
-    expect(root.querySelector("#modal-title").textContent).toBe("Bulk import format");
-    const message = root.querySelector("#modal-message").textContent;
-    expect(message).toMatch(/Playlist Title/);
-    expect(message).toMatch(/empty playlist/);
+    const modal = root.querySelector("#import-modal");
+    expect(modal.hidden).toBe(false);
+    expect(root.querySelector("#import-modal-title").textContent).toBe("Bulk import format");
+    expect(modal.textContent).toMatch(/Playlist Title/);
+    expect(modal.textContent).toMatch(/empty playlist/);
+    // Examples are shown in dedicated snippet boxes.
+    expect(modal.querySelectorAll(".help-snippet").length).toBeGreaterThan(0);
   });
 
   it("copying a playlist leaves the playback status line untouched", async () => {
@@ -362,59 +370,115 @@ describe("bulk import", () => {
     expect(status.textContent).toBe(before);
   });
 
-  it("dismisses a modal with the top-right close button", async () => {
+  it("dismisses the import format modal with its close button", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     await user.click(q.getByRole("button", { name: "Import format help" }));
-    expect(root.querySelector("#modal").hidden).toBe(false);
-    await user.click(q.getByRole("button", { name: "Close" }));
-    expect(root.querySelector("#modal").hidden).toBe(true);
+    const modal = root.querySelector("#import-modal");
+    expect(modal.hidden).toBe(false);
+    await user.click(within(modal).getByRole("button", { name: "Close" }));
+    expect(modal.hidden).toBe(true);
   });
 
-  it("keeps the modal open when the backdrop is clicked (only the X/Cancel closes it)", async () => {
+  it("keeps the import format modal open when its backdrop is clicked", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     await user.click(q.getByRole("button", { name: "Import format help" }));
-    const modalEl = root.querySelector("#modal");
-    expect(modalEl.hidden).toBe(false);
+    const modal = root.querySelector("#import-modal");
+    expect(modal.hidden).toBe(false);
 
+    // A stray click on the backdrop must not dismiss it (only the X does).
+    modal.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(modal.hidden).toBe(false);
+
+    await user.click(within(modal).getByRole("button", { name: "Close" }));
+    expect(modal.hidden).toBe(true);
+  });
+
+  it("keeps the alert modal open when its backdrop is clicked (only X/OK closes it)", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount(); // no alert stub: a duplicate opens the real modal
+    await importViaBulk(user, q, "Dup, [VIDEOID0001]");
+    await importViaBulk(user, q, "Dup, [VIDEOID0002]"); // duplicate name -> alert
+
+    const modalEl = root.querySelector("#modal");
+    await waitFor(() => expect(modalEl.hidden).toBe(false));
     // Releasing a drag-selection outside the card lands a click on the backdrop.
-    // That must not dismiss the modal.
     modalEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(modalEl.hidden).toBe(false);
 
-    await user.click(q.getByRole("button", { name: "Close" }));
+    await user.click(within(modalEl).getByRole("button", { name: "OK" }));
     expect(modalEl.hidden).toBe(true);
   });
 });
 
-describe("playlist collapse", () => {
-  it("expands an imported playlist and collapses it when its header is clicked again", async () => {
+describe("playlist selection and collapse", () => {
+  it("nothing is selected or open when a saved library first appears", async () => {
     const user = userEvent.setup();
-    const { root, q } = mount();
-    await importViaBulk(user, q, "Collapse Me, [VIDEOID0001]");
-    expect(root.querySelector(".drawer-playlist-card.expanded")).toBeTruthy();
+    // Seed storage with a playlist, then mount fresh to simulate a reload.
+    const seed = mount();
+    await importViaBulk(user, seed.q, "Saved, [VIDEOID0001]");
+    seed.root.remove();
 
-    await user.click(q.getByRole("button", { name: /Collapse Me/ }));
-    expect(root.querySelector(".drawer-playlist-card.expanded")).toBeNull();
+    const { root } = mount();
+    expect(root.querySelector(".drawer-playlist-card")).toBeTruthy(); // the row is there
+    expect(root.querySelector(".drawer-playlist-card.selected")).toBeNull(); // but unselected
+    expect(root.querySelector(".drawer-playlist-card.open")).toBeNull();
+    expect(root.querySelector(".drawer-playlist-controls")).toBeNull(); // and no controls
   });
 
-  it("collapses through the collapse button in the detail toolbar", async () => {
+  it("does not fold the editor when the already-selected row's body is clicked", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    await importViaBulk(user, q, "Collapse Me, [VIDEOID0001]"); // selected + open
+    expect(root.querySelector(".drawer-playlist-card.open")).toBeTruthy();
+
+    // Clicking the body of the already-selected row does nothing: it stays open.
+    await user.click(q.getByRole("button", { name: /Collapse Me/ }));
+    expect(root.querySelector(".drawer-playlist-card.open")).toBeTruthy();
+
+    // Only the collapse arrow folds it; the row stays selected (controls remain).
+    await user.click(q.getByRole("button", { name: "Collapse playlist" }));
+    expect(root.querySelector(".drawer-playlist-card.open")).toBeNull();
+    expect(root.querySelector(".drawer-playlist-card.selected")).toBeTruthy();
+  });
+
+  it("folds and reopens the selected playlist with its collapse arrow", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     await importViaBulk(user, q, "Collapse Me, [VIDEOID0001]");
-    const expanded = root.querySelector(".drawer-playlist-card.expanded");
-    await user.click(within(expanded).getByRole("button", { name: "Collapse playlist" }));
-    expect(root.querySelector(".drawer-playlist-card.expanded")).toBeNull();
+    await user.click(q.getByRole("button", { name: "Collapse playlist" }));
+    expect(root.querySelector(".drawer-playlist-card.open")).toBeNull();
+
+    await user.click(q.getByRole("button", { name: "Expand playlist" }));
+    expect(root.querySelector(".drawer-playlist-card.open")).toBeTruthy();
+  });
+
+  it("shows controls only on the selected row and moves them when selection changes", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    await importViaBulk(user, q, "Alpha, [VIDEOID0001]");
+    await importViaBulk(user, q, "Beta, [VIDEOID0002]"); // Beta is now the selected one
+
+    // Exactly one selected row, carrying a single set of controls.
+    expect(root.querySelectorAll(".drawer-playlist-card.selected")).toHaveLength(1);
+    expect(q.getAllByRole("button", { name: "Rename playlist" })).toHaveLength(1);
+
+    // Selecting Alpha moves the selection there and collapses everything.
+    await user.click(q.getByRole("button", { name: /Alpha/ }));
+    const selected = root.querySelector(".drawer-playlist-card.selected");
+    expect(within(selected).getByText("Alpha")).toBeTruthy();
+    expect(root.querySelector(".drawer-playlist-card.open")).toBeNull();
+    expect(q.getAllByRole("button", { name: "Rename playlist" })).toHaveLength(1);
   });
 });
 
 describe("playlist drawer editor", () => {
-  it("adds and removes tracks from the expanded playlist detail", async () => {
+  it("adds and removes tracks from the open playlist detail", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
 
-    // A title-only import makes an empty playlist and auto-expands its editor.
+    // A title-only import makes an empty playlist and opens its editor.
     await importViaBulk(user, q, "Drawer List");
 
     await user.type(q.getByLabelText("Add tracks to Drawer List"), "aaaaaaaaaaa, bbbbbbbbbbb");
@@ -423,8 +487,8 @@ describe("playlist drawer editor", () => {
     expect(root.querySelectorAll(".drawer-track")).toHaveLength(2);
     expect(root.querySelector("#queue-count").textContent).toBe("2 tracks");
 
-    const expanded = root.querySelector(".drawer-playlist-card.expanded");
-    await user.click(within(expanded).getAllByRole("button", { name: "Remove track" })[0]);
+    const open = root.querySelector(".drawer-playlist-card.open");
+    await user.click(within(open).getAllByRole("button", { name: "Remove track" })[0]);
 
     expect(loadState(localStorage).playlists[0].tracks.map((track) => track.videoId)).toEqual([
       "bbbbbbbbbbb"
@@ -488,6 +552,65 @@ describe("auto-naming from the YouTube title", () => {
     });
     expect(loadState(localStorage).playlists[0].tracks[0].label).toBe("My Song");
   });
+
+  it("resolves the title for every track, including playlists that are not active", async () => {
+    const user = userEvent.setup();
+    // The title comes back keyed off the requested video id, so each track must
+    // end up with its own real title rather than falling back to the bare id.
+    global.fetch = vi.fn((url) => {
+      const which = String(url).includes("VIDEOID0001") ? "One" : "Two";
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ title: "Song " + which + " (Official Video)" })
+      });
+    });
+
+    const { q } = mount({ resolveTitles: true });
+    await importViaBulk(user, q, "A, [VIDEOID0001]");
+    await importViaBulk(user, q, "B, [VIDEOID0002]"); // B becomes active, A is not
+
+    await waitFor(() => {
+      const saved = loadState(localStorage);
+      const a = saved.playlists.find((p) => p.name === "A");
+      const b = saved.playlists.find((p) => p.name === "B");
+      // The non-active playlist's track must still carry the real video title.
+      expect(a.tracks[0].youtubeTitle).toBe("Song One (Official Video)");
+      expect(b.tracks[0].youtubeTitle).toBe("Song Two (Official Video)");
+    });
+  });
+});
+
+describe("tooltips", () => {
+  it("shows tooltips for hero tools but not the transport, queue, or drawer", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    await importViaBulk(user, q, "T, [VIDEOID0001]");
+    const tip = root.querySelector("#tooltip");
+    const fire = (el) => el.dispatchEvent(new Event("pointerover", { bubbles: true }));
+
+    // Transport buttons: no tooltip.
+    for (const id of ["#hero-previous", "#hero-play", "#hero-stop", "#hero-next"]) {
+      fire(root.querySelector(id));
+      expect(tip.hidden).toBe(true);
+    }
+
+    // Track queue rows: no tooltip.
+    fire(root.querySelector(".track-title-button"));
+    expect(tip.hidden).toBe(true);
+
+    // Hero YouTube link: no tooltip.
+    fire(root.querySelector("#now-subtitle"));
+    expect(tip.hidden).toBe(true);
+
+    // Modal close buttons: no tooltip.
+    fire(root.querySelector("#help-close"));
+    expect(tip.hidden).toBe(true);
+
+    // Hero tools keep their tooltip.
+    fire(root.querySelector("#share-playlist"));
+    expect(tip.hidden).toBe(false);
+    expect(tip.textContent).toBe("Copy share link");
+  });
 });
 
 describe("options", () => {
@@ -511,10 +634,88 @@ describe("options", () => {
     await user.click(q.getByLabelText("Shuffle"));
     expect(loadState(localStorage).settings.shuffle).toBe(true);
 
-    await user.click(root.querySelector("#play-button")); // start at track 1
+    await user.click(root.querySelector("#hero-play")); // start at track 1
     fake.fire("ended");
     fake.fire("ended");
     const played = new Set(fake.calls.load);
     expect(played.size).toBe(3); // visited all three across the cycle
+  });
+});
+
+describe("now-playing tab title marquee", () => {
+  async function setupPlaying() {
+    const user = userEvent.setup();
+    const harness = mount();
+    await importViaBulk(user, harness.q, "Tab, [My Label | VIDEOID0001]");
+    return { user, ...harness };
+  }
+
+  it("scrolls 'Now Playing: label - title' while playing and restores it on stop", async () => {
+    const { user, root } = await setupPlaying();
+
+    await user.click(within(root.querySelector("#track-list")).getByRole("button", { name: "My Label" }));
+    // The marquee seeds the title with the un-rotated string before the first tick.
+    expect(document.title).toContain("Now Playing: My Label - VIDEOID0001");
+    expect(window.__musicTitleTimer).toBeTruthy();
+
+    await user.click(root.querySelector("#hero-stop"));
+    expect(document.title).toBe("Personal Music YT Player");
+    expect(window.__musicTitleTimer).toBeFalsy();
+  });
+
+  it("uses the resolved YouTube title in the marquee once it arrives", async () => {
+    const user = userEvent.setup();
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ title: "Real Song Title" }) })
+    );
+    const { q, root } = mount({ resolveTitles: true });
+    await importViaBulk(user, q, "Tab, [VIDEOID0001]");
+    // The label auto-renames once the title resolves, so click the row itself
+    // (stable) rather than a name that is about to change.
+    await user.click(root.querySelector(".track-title-button"));
+
+    await waitFor(() => {
+      expect(document.title).toContain("Real Song Title");
+    });
+    delete global.fetch;
+  });
+});
+
+describe("how-to-use help modal", () => {
+  it("opens from the hero info button and shows the keyboard guide, then closes", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+
+    const help = root.querySelector("#help-modal");
+    expect(help.hidden).toBe(true);
+
+    await user.click(q.getByRole("button", { name: "How to use" }));
+    expect(help.hidden).toBe(false);
+    const dialog = within(help);
+    expect(dialog.getByText("Pause / resume")).toBeTruthy();
+    expect(dialog.getByText("Space")).toBeTruthy();
+    expect(dialog.getByText("Next")).toBeTruthy();
+
+    await user.click(dialog.getByRole("button", { name: "Close" }));
+    expect(help.hidden).toBe(true);
+  });
+});
+
+describe("hero now-playing lines", () => {
+  it("shows the song name, the YouTube subtitle, and a link out to the video", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    await importViaBulk(user, q, "Hero, [Tycho Song | VIDEOID0001]");
+
+    await user.click(within(root.querySelector("#track-list")).getByRole("button", { name: "Tycho Song" }));
+
+    expect(root.querySelector("#now-song").textContent).toBe("Tycho Song");
+    const link = root.querySelector("#now-subtitle");
+    expect(link.getAttribute("href")).toBe("https://www.youtube.com/watch?v=VIDEOID0001");
+    expect(link.hasAttribute("aria-disabled")).toBe(false);
+
+    // The "PLAYLIST:" kicker plus name live under the hero, in the queue header.
+    expect(root.querySelector("#queue-kicker").hidden).toBe(false);
+    expect(root.querySelector("#queue-name").textContent).toBe("Hero");
   });
 });

@@ -2,13 +2,15 @@
 
 *If you are an agent, read [`SKILL.md`](SKILL.md) first.*
 
+*Live: [hec-ovi.github.io/music](https://hec-ovi.github.io/music/)*
+
 [![demo](https://img.shields.io/badge/demo-live-black.svg)](https://hec-ovi.github.io/music/)
 [![play a sample list](https://img.shields.io/badge/%E2%96%B6-sample%20list-black.svg)](https://hec-ovi.github.io/music/?playlist=Sample%20List%2C%20%5B2frers%20-%20EYES%20ON%20US%20%7C%20CsQ59uMYB_Y%2C%20NAVARA%20-%20FALLEN%20ANGEL%20%7C%20sWd8bc_LkqM%2C%20Sano%20-%20SET%20ME%20FREE%20%7C%20e1QIqXmZ2os%2C%20ruindkid%20-%20Bad%20Pitch%20For%20You%20%7C%20UhaU1ZVu9v0%2C%20KORZIX%20-%20ascend%20%7C%20ibPYPD8Hl4Q%2C%20Oxlo%20-%20Anesthesia%20%7C%20f59m5Pugdw4%2C%20Pat%20-%20Shotgun%20%7C%209fHjcTKV-kg%5D)
 [![license: MIT](https://img.shields.io/badge/license-MIT-black.svg)](./LICENSE)
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
-![tests: 72 passing](https://img.shields.io/badge/tests-72%20passing-black.svg)
+![tests: 80 passing](https://img.shields.io/badge/tests-80%20passing-black.svg)
 
 ![Personal Music YT Player playing a public-domain classical playlist, then a free-music sample list](docs/demo.gif)
 
@@ -48,7 +50,8 @@ Open the page, open the Playlists drawer, and paste into the Bulk import box: a
 full `Playlist Title, [songs]` block, or just a title to make an empty playlist.
 The "+" next to "Bulk import format" explains the format with examples. Then
 paste ids/links into the Add field and click a track to play it. Click a playlist
-to expand its editor; click it again (or the collapse button) to fold it back.
+to open its editor; the collapse arrow next to its name folds it back. The "?"
+button in the top right opens a quick visual guide to the controls and keys.
 
 Keyboard controls (experimental) follow the old Winamp layout. They listen at
 the page level and skip text fields, so they work whenever the page has focus. If

@@ -42,22 +42,9 @@ const ICONS = {
 
 const DUPLICATE_PLAYLIST_MESSAGE = "playlist already exist, remove actual, or rename it";
 
-const IMPORT_HELP_TEXT = [
-  "Each line is one playlist.",
-  "",
-  "Format:",
-  "Playlist Title, [id, https://youtu.be/id, Song Name | id]",
-  "",
-  "Tracks go inside the [ ] brackets, separated by commas. You can mix bare",
-  'video ids, full YouTube links, and "Label | id" pairs in the same list.',
-  "",
-  "Examples:",
-  "Chill Mix, [VIDEOID0001, https://youtu.be/VIDEOID0002]",
-  "Focus, [Deep work | VIDEOID0001, VIDEOID0002]",
-  "",
-  "Title only (no brackets) just makes an empty playlist with that name:",
-  "My New Playlist"
-].join("\n");
+// Tab title shown when nothing is playing; while a track plays it is replaced by
+// a scrolling "Now Playing: ..." marquee (see startTitleMarquee).
+const DEFAULT_TITLE = "Personal Music YT Player";
 
 const SHELL = `
   <div class="app-shell">
@@ -65,19 +52,21 @@ const SHELL = `
       <div class="hero-bg" id="hero-bg"></div>
       <div class="cover-grid" id="cover-grid" aria-hidden="true"></div>
       <div class="hero-copy">
-        <div class="eyebrow" id="now-playlist">Playlist</div>
+        <div class="eyebrow" id="now-song">Song</div>
         <div class="hero-title" id="now-title">Select a playlist</div>
-        <div class="hero-subtitle" id="now-subtitle">Ready</div>
+        <a class="hero-subtitle" id="now-subtitle" href="#" target="_blank" rel="noreferrer" aria-disabled="true">Ready</a>
         <div class="hero-transport" aria-label="Quick playback">
           <button class="round-button" id="hero-previous" type="button" aria-label="Previous"></button>
           <button class="round-button primary hero-play" id="hero-play" type="button" aria-label="Play"></button>
+          <button class="round-button" id="hero-stop" type="button" aria-label="Stop"></button>
           <button class="round-button" id="hero-next" type="button" aria-label="Next"></button>
         </div>
       </div>
       <div class="hero-actions" aria-label="Playlist tools">
         <div class="hero-tools" aria-label="Playlist tools">
-          <button class="round-button" id="export-playlist" type="button" aria-label="Copy playlist bulk format"></button>
-          <button class="round-button" id="share-playlist" type="button" aria-label="Copy share link"></button>
+          <button class="hero-tool-button" id="export-playlist" type="button" aria-label="Copy playlist bulk format"></button>
+          <button class="hero-tool-button" id="share-playlist" type="button" aria-label="Copy share link"></button>
+          <button class="hero-tool-button" id="help-button" type="button" aria-label="How to use"></button>
         </div>
       </div>
     </section>
@@ -86,14 +75,14 @@ const SHELL = `
       <section class="queue-panel" aria-label="Track queue">
         <div class="queue-head">
           <div>
-            <div class="queue-title" id="queue-title">Queue</div>
+            <div class="queue-title" id="queue-title"><span class="queue-kicker" id="queue-kicker">PLAYLIST:</span> <span class="queue-name" id="queue-name">Queue</span></div>
             <div class="queue-count" id="queue-count">0 tracks</div>
           </div>
-          <input class="field" id="search" type="search" placeholder="Filter tracks" aria-label="Filter tracks">
+          <input class="field search-field" id="search" type="search" placeholder="Filter tracks" aria-label="Filter tracks">
         </div>
 
         <form class="add-form" id="add-form">
-          <input id="add-input" class="field" type="text" placeholder="Add id, link, or Label | link" aria-label="Add tracks" autocomplete="off">
+          <input id="add-input" class="field add-field" type="text" placeholder="To add a track, paste a YouTube link and hit enter, e.g. https://youtube.com/watch?v=VIDEOID" aria-label="Add tracks" autocomplete="off">
           <button class="icon-submit add-submit" id="add-button" type="submit" aria-label="Add"></button>
         </form>
 
@@ -159,12 +148,6 @@ const SHELL = `
       </div>
 
       <div class="dock-center">
-        <div class="transport" aria-label="Transport controls">
-          <button class="transport-button" id="previous-button" type="button" aria-label="Previous"></button>
-          <button class="transport-button" id="play-button" type="button" aria-label="Play"></button>
-          <button class="transport-button" id="stop-button" type="button" aria-label="Stop"></button>
-          <button class="transport-button" id="next-button" type="button" aria-label="Next"></button>
-        </div>
         <div class="seekbar">
           <span class="time" id="time-current">0:00</span>
           <input id="seek" type="range" min="0" max="0" value="0" step="1" aria-label="Seek">
@@ -197,6 +180,43 @@ const SHELL = `
         <button class="button" id="modal-cancel" type="button">Cancel</button>
       </div>
     </form>
+  </div>
+
+  <div class="modal-backdrop help-backdrop" id="help-modal" hidden>
+    <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="modal-close" id="help-close" type="button" aria-label="Close"></button>
+      <h2 id="help-title">How to use</h2>
+      <ol class="help-steps">
+        <li><span class="help-step-num">1</span><span>Open <strong>Playlists</strong>, paste a title or a bulk block to build a list.</span></li>
+        <li><span class="help-step-num">2</span><span>Drop a YouTube link in the <strong>Add</strong> field, then click a track to play.</span></li>
+        <li><span class="help-step-num">3</span><span>Drive it with the transport buttons, or the keys below.</span></li>
+      </ol>
+      <div class="help-keys-title">Keyboard</div>
+      <div class="help-keys">
+        <div class="help-key"><kbd class="key key-wide">Space</kbd><span>Pause / resume</span></div>
+        <div class="help-key"><kbd class="key">Z</kbd><span>Previous</span></div>
+        <div class="help-key"><kbd class="key">X</kbd><span>Restart track</span></div>
+        <div class="help-key"><kbd class="key">C</kbd><span>Pause</span></div>
+        <div class="help-key"><kbd class="key">V</kbd><span>Stop</span></div>
+        <div class="help-key"><kbd class="key">B</kbd><span>Next</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop help-backdrop" id="import-modal" hidden>
+    <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+      <button class="modal-close" id="import-modal-close" type="button" aria-label="Close"></button>
+      <h2 id="import-modal-title">Bulk import format</h2>
+      <p class="help-intro">One <strong>Playlist Title</strong> per line. Tracks go inside <code>[ ]</code>, comma-separated. Mix bare video ids, full links, and <code>Label | id</code> pairs.</p>
+      <div class="help-keys-title">Format</div>
+      <pre class="help-snippet">Playlist Title, [id, https://youtu.be/id, Song Name | id]</pre>
+      <div class="help-keys-title">Examples</div>
+      <pre class="help-snippet">Chill Mix, [VIDEOID0001, https://youtu.be/VIDEOID0002]
+Focus, [Deep work | VIDEOID0001, VIDEOID0002]</pre>
+      <div class="help-keys-title">Empty playlist</div>
+      <p class="help-intro">A title on its own line (no brackets) just makes an empty playlist:</p>
+      <pre class="help-snippet">My New Playlist</pre>
+    </div>
   </div>
 
   <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
@@ -286,6 +306,13 @@ async function copyText(text) {
 
 function tooltipTargetFrom(node) {
   if (!(node instanceof Element)) return null;
+  // No tooltips inside the track queue, the playlist drawer, any modal, the hero
+  // transport (prev/play/stop/next), or on the hero YouTube link: those are
+  // self-explanatory and the auto-derived text read poorly. The hero tools and
+  // footer keep theirs.
+  if (node.closest(".queue-panel, .playlist-drawer, .modal-backdrop, .hero-transport, .hero-subtitle")) {
+    return null;
+  }
   return node.closest("button, label.switch, a, input[type='range'], [data-tooltip]");
 }
 
@@ -462,8 +489,14 @@ export function initApp(options) {
     playlistDrawer: $("playlist-drawer"),
     exportPlaylist: $("export-playlist"),
     sharePlaylist: $("share-playlist"),
+    helpButton: $("help-button"),
+    helpModal: $("help-modal"),
+    helpClose: $("help-close"),
+    importModal: $("import-modal"),
+    importModalClose: $("import-modal-close"),
     heroPrevious: $("hero-previous"),
     heroPlay: $("hero-play"),
+    heroStop: $("hero-stop"),
     heroNext: $("hero-next"),
     heroBg: $("hero-bg"),
     coverGrid: $("cover-grid"),
@@ -475,7 +508,7 @@ export function initApp(options) {
     playlistTabs: $("playlist-tabs"),
     clearLocal: $("clear-local"),
     playerFrame: $("player-frame"),
-    nowPlaylist: $("now-playlist"),
+    nowSong: $("now-song"),
     nowTitle: $("now-title"),
     nowSubtitle: $("now-subtitle"),
     dockTitle: $("dock-title"),
@@ -484,10 +517,6 @@ export function initApp(options) {
     seek: $("seek"),
     timeCurrent: $("time-current"),
     timeTotal: $("time-total"),
-    previousButton: $("previous-button"),
-    playButton: $("play-button"),
-    stopButton: $("stop-button"),
-    nextButton: $("next-button"),
     shuffleToggle: $("shuffle-toggle"),
     loopToggle: $("loop-toggle"),
     showVideoToggle: $("show-video-toggle"),
@@ -495,7 +524,8 @@ export function initApp(options) {
     statusText: $("status-text"),
     currentPosition: $("current-position"),
     playlistSize: $("playlist-size"),
-    queueTitle: $("queue-title"),
+    queueName: $("queue-name"),
+    queueKicker: $("queue-kicker"),
     queueCount: $("queue-count"),
     addForm: $("add-form"),
     addButton: $("add-button"),
@@ -515,16 +545,16 @@ export function initApp(options) {
 
   setIconButton(els.exportPlaylist, "import", "Copy playlist bulk format");
   setIconButton(els.sharePlaylist, "share", "Copy share link");
+  setIconButton(els.helpButton, "info", "How to use");
   setIconButton(els.drawerClose, "close", "Close playlists");
   setIconButton(els.heroPrevious, "previous", "Previous");
   setIconButton(els.heroPlay, "play", "Play");
+  setIconButton(els.heroStop, "stop", "Stop");
   setIconButton(els.heroNext, "next", "Next");
-  setIconButton(els.previousButton, "previous", "Previous");
-  setIconButton(els.playButton, "play", "Play");
-  setIconButton(els.stopButton, "stop", "Stop");
-  setIconButton(els.nextButton, "next", "Next");
   setIconButton(els.importInfo, "info", "Import format help");
   setIconButton(els.modalClose, "close", "Close");
+  setIconButton(els.helpClose, "close", "Close");
+  setIconButton(els.importModalClose, "close", "Close");
   setIconButton(els.addButton, "add", "Add");
   root.querySelector('[data-icon="shuffle"]').innerHTML = icon("shuffle");
   root.querySelector('[data-icon="loop"]').innerHTML = icon("loop");
@@ -533,9 +563,10 @@ export function initApp(options) {
   root.querySelector('[title="Shuffle"]').removeAttribute("title");
   root.querySelector('[title="Loop"]').dataset.tooltip = "Loop playlist";
   root.querySelector('[title="Loop"]').removeAttribute("title");
-  root.querySelector('[title="Show video"]').dataset.tooltip = "Show video player";
+  root.querySelector('[title="Show video"]').dataset.tooltip = "Show / hide video";
   root.querySelector('[title="Show video"]').removeAttribute("title");
   els.volume.dataset.tooltip = "Volume";
+  els.drawerToggle.dataset.tooltip = "Manage your playlists";
   setupTooltips(root, els.tooltip);
 
   const modal = createModalController(els);
@@ -562,7 +593,21 @@ export function initApp(options) {
   let history = [];
   const titleRequests = new Set();
   const coverTrackIdsByPlaylist = new Map();
+  // Drawer selection model: a playlist is "selected" when its row is clicked,
+  // which reveals its collapse/edit/delete controls and closes any other open
+  // editor. "Expanded" (editor open) only ever applies to the selected playlist
+  // and is toggled by its collapse arrow. On first appearance both are null, so
+  // nothing is selected or open.
+  let drawerSelectedPlaylistId = null;
   let drawerExpandedPlaylistId = null;
+
+  // Tab-title marquee. The interval handle lives on the window so a fresh mount
+  // (and the tests) can always cancel a previously running scroller, while the
+  // current source string is kept per-instance to skip needless restarts.
+  const titleDoc = root.ownerDocument || (typeof document !== "undefined" ? document : null);
+  const titleWin =
+    (titleDoc && titleDoc.defaultView) || (typeof window !== "undefined" ? window : null);
+  let marqueeSource = "";
 
   function persist() {
     saveState(storage, state);
@@ -604,7 +649,10 @@ export function initApp(options) {
     }
 
     const totalAdded = imported.reduce((sum, item) => sum + item.added, 0);
-    drawerExpandedPlaylistId = imported[imported.length - 1].id;
+    // A freshly imported playlist is selected and its editor opened, so you can
+    // immediately add tracks to it.
+    drawerSelectedPlaylistId = imported[imported.length - 1].id;
+    drawerExpandedPlaylistId = drawerSelectedPlaylistId;
     currentIndex = 0;
     history = [];
     shuffleQueue = [];
@@ -655,6 +703,7 @@ export function initApp(options) {
       storage.removeItem(STORAGE_KEY);
     }
     state = emptyState();
+    drawerSelectedPlaylistId = null;
     drawerExpandedPlaylistId = null;
     currentIndex = 0;
     shuffleQueue = [];
@@ -771,7 +820,12 @@ export function initApp(options) {
     if (!ok) return;
     const wasActive = playlist.id === state.activePlaylistId;
     deletePlaylist(state, playlist.id);
-    drawerExpandedPlaylistId = state.activePlaylistId;
+    // Deleting clears the selection if it was the deleted row; the list returns
+    // to the unselected, nothing-open state.
+    if (drawerSelectedPlaylistId === playlist.id) {
+      drawerSelectedPlaylistId = null;
+      drawerExpandedPlaylistId = null;
+    }
     if (wasActive) {
       currentIndex = 0;
       history = [];
@@ -857,31 +911,12 @@ export function initApp(options) {
     const detail = document.createElement("div");
     detail.className = "drawer-playlist-detail";
 
-    const toolbar = document.createElement("div");
-    toolbar.className = "drawer-detail-toolbar";
-    const addTitle = document.createElement("div");
-    addTitle.className = "drawer-detail-title";
-    addTitle.textContent = "Edit playlist";
-    const actions = document.createElement("div");
-    actions.className = "drawer-detail-actions";
-    const collapse = makeIconButton("up", "Collapse playlist", "drawer-icon-button");
-    collapse.addEventListener("click", () => {
-      drawerExpandedPlaylistId = null;
-      renderTabs();
-    });
-    const rename = makeIconButton("edit", "Rename playlist", "drawer-icon-button");
-    rename.addEventListener("click", () => renamePlaylistById(playlist.id));
-    const remove = makeIconButton("trash", "Delete playlist", "drawer-icon-button danger");
-    remove.addEventListener("click", () => deletePlaylistById(playlist.id));
-    actions.append(collapse, rename, remove);
-    toolbar.append(addTitle, actions);
-
     const form = document.createElement("form");
     form.className = "drawer-add-track-form";
     const input = document.createElement("input");
-    input.className = "field";
+    input.className = "field drawer-add-field";
     input.type = "text";
-    input.placeholder = "Add id, link, or Label | link";
+    input.placeholder = "To add a track, paste a YouTube link and hit enter, e.g. https://youtube.com/watch?v=VIDEOID";
     input.setAttribute("aria-label", "Add tracks to " + playlist.name);
     const submit = makeIconButton("add", "Add tracks to playlist", "drawer-submit-button");
     submit.type = "submit";
@@ -904,7 +939,7 @@ export function initApp(options) {
       });
     }
 
-    detail.append(toolbar, form, tracks);
+    detail.append(form, tracks);
     return detail;
   }
 
@@ -917,26 +952,32 @@ export function initApp(options) {
       els.playlistTabs.append(empty);
       return;
     }
-    if (
-      drawerExpandedPlaylistId &&
-      !state.playlists.some((playlist) => playlist.id === drawerExpandedPlaylistId)
-    ) {
+    // Drop selection/expansion that points at a playlist that no longer exists.
+    const ids = new Set(state.playlists.map((playlist) => playlist.id));
+    if (drawerSelectedPlaylistId && !ids.has(drawerSelectedPlaylistId)) {
+      drawerSelectedPlaylistId = null;
+    }
+    if (drawerExpandedPlaylistId && drawerExpandedPlaylistId !== drawerSelectedPlaylistId) {
       drawerExpandedPlaylistId = null;
     }
     state.playlists.forEach((playlist) => {
       const card = document.createElement("article");
+      const head = document.createElement("div");
       const button = document.createElement("button");
       const thumb = document.createElement("span");
       const body = document.createElement("span");
       const title = document.createElement("strong");
       const meta = document.createElement("span");
-      const isActive = playlist.id === state.activePlaylistId;
-      const isExpanded = playlist.id === drawerExpandedPlaylistId;
+      // A row is "selected" once clicked (this is the only highlighted state and
+      // the only one that shows controls); "open" means its editor is unfolded.
+      // On first appearance nothing is selected, so nothing is coloured.
+      const isSelected = playlist.id === drawerSelectedPlaylistId;
+      const isOpen = isSelected && playlist.id === drawerExpandedPlaylistId;
 
       button.type = "button";
-      button.className = "playlist-tab" + (isActive ? " active" : "") + (isExpanded ? " expanded" : "");
-      button.setAttribute("aria-pressed", String(isActive));
-      button.setAttribute("aria-expanded", String(isExpanded));
+      button.className = "playlist-tab";
+      button.setAttribute("aria-pressed", String(isSelected));
+      button.setAttribute("aria-expanded", String(isOpen));
       thumb.className = "playlist-thumb";
       if (playlist.tracks[0]) {
         thumb.style.backgroundImage = "url(" + playlist.tracks[0].thumbnailUrl + ")";
@@ -946,24 +987,55 @@ export function initApp(options) {
       meta.textContent = trackCountText(playlist.tracks.length);
       body.append(title, meta);
       button.append(thumb, body);
-      button.addEventListener("click", () => {
-        if (drawerExpandedPlaylistId === playlist.id) {
-          drawerExpandedPlaylistId = null;
+      // Clicking a row only changes the selection: it never opens the editor (the
+      // collapse arrow does that) and it closes any other open editor.
+      button.addEventListener("click", () => selectDrawerPlaylist(playlist.id));
+
+      head.className = "drawer-playlist-head";
+      head.append(button);
+
+      // The collapse, rename, and delete controls live inside the selected row's
+      // coloured header and only appear there.
+      if (isSelected) {
+        const controls = document.createElement("div");
+        controls.className = "drawer-playlist-controls";
+        const collapse = makeIconButton(
+          isOpen ? "up" : "down",
+          isOpen ? "Collapse playlist" : "Expand playlist",
+          "drawer-icon-button"
+        );
+        collapse.addEventListener("click", () => {
+          drawerExpandedPlaylistId = isOpen ? null : playlist.id;
           renderTabs();
-          return;
-        }
-        drawerExpandedPlaylistId = playlist.id;
-        if (playlist.id === state.activePlaylistId) {
-          renderTabs();
-          return;
-        }
-        selectPlaylist(playlist.id);
-      });
-      card.className = "drawer-playlist-card" + (isExpanded ? " expanded" : "");
-      card.append(button);
-      if (isExpanded) card.append(renderDrawerPlaylistDetail(playlist));
+        });
+        const rename = makeIconButton("edit", "Rename playlist", "drawer-icon-button");
+        rename.addEventListener("click", () => renamePlaylistById(playlist.id));
+        const remove = makeIconButton("trash", "Delete playlist", "drawer-icon-button danger");
+        remove.addEventListener("click", () => deletePlaylistById(playlist.id));
+        controls.append(collapse, rename, remove);
+        head.append(controls);
+      }
+
+      card.className =
+        "drawer-playlist-card" + (isSelected ? " selected" : "") + (isOpen ? " open" : "");
+      card.append(head);
+      if (isOpen) card.append(renderDrawerPlaylistDetail(playlist));
       els.playlistTabs.append(card);
     });
+  }
+
+  // Selecting a playlist in the drawer just changes the selection: it reveals the
+  // collapse/edit/delete controls on that row, folds any other open editor, and
+  // makes it the active playlist. It does not open the editor by itself.
+  function selectDrawerPlaylist(id) {
+    if (id === drawerSelectedPlaylistId) return; // already selected, nothing happens
+    drawerSelectedPlaylistId = id;
+    drawerExpandedPlaylistId = null;
+    if (id !== state.activePlaylistId) {
+      selectPlaylist(id);
+    } else {
+      renderTabs();
+    }
   }
 
   function renderNow() {
@@ -975,16 +1047,27 @@ export function initApp(options) {
     els.librarySummary.textContent = state.playlists.length
       ? state.playlists.length + " playlists, " + totalTracks + " tracks"
       : "Create or import a private local playlist";
-    els.nowPlaylist.textContent = playlist ? playlist.name : "Playlist";
-    els.nowTitle.textContent = track ? track.label : playlist ? "Empty playlist" : "Select a playlist";
-    els.nowSubtitle.textContent = track
+    // Hero shows three stacked lines: the song name (accent), a white subtitle
+    // (the YouTube title), and a grey line that links out to the video.
+    els.nowSong.textContent = track ? track.label : playlist ? "Empty playlist" : "Select a playlist";
+    els.nowTitle.textContent = track
       ? track.youtubeTitle || track.videoId
       : playlist
       ? "Add tracks to start listening"
       : "Ready";
+    if (track) {
+      els.nowSubtitle.textContent = track.url;
+      els.nowSubtitle.href = track.url;
+      els.nowSubtitle.removeAttribute("aria-disabled");
+    } else {
+      els.nowSubtitle.textContent = "YouTube";
+      els.nowSubtitle.href = "#";
+      els.nowSubtitle.setAttribute("aria-disabled", "true");
+    }
     els.currentPosition.textContent = track ? String(currentIndex + 1) : "0";
     els.playlistSize.textContent = String(tracks.length);
-    els.queueTitle.textContent = playlist ? playlist.name : "Queue";
+    els.queueName.textContent = playlist ? playlist.name : "Queue";
+    els.queueKicker.hidden = !playlist;
     els.queueCount.textContent = tracks.length + (tracks.length === 1 ? " track" : " tracks");
     els.dockTitle.textContent = track ? track.label : "Nothing selected";
     els.dockLink.textContent = track ? track.url : "YouTube";
@@ -999,6 +1082,8 @@ export function initApp(options) {
       els.nowArt.removeAttribute("src");
       els.nowArt.hidden = true;
     }
+    // Keep the tab marquee in step when the track or its resolved title changes.
+    syncNowPlayingTitle();
   }
 
   function renderTracks() {
@@ -1146,9 +1231,50 @@ export function initApp(options) {
     enrichTitles();
   }
 
+  function clearTitleTimer() {
+    if (titleWin && titleWin.__musicTitleTimer) {
+      titleWin.clearInterval(titleWin.__musicTitleTimer);
+      titleWin.__musicTitleTimer = null;
+    }
+  }
+
+  function setBaseTitle() {
+    clearTitleTimer();
+    marqueeSource = "";
+    if (titleDoc) titleDoc.title = DEFAULT_TITLE;
+  }
+
+  // Scroll `text` across the tab title one character at a time, like an old
+  // Winamp marquee. A trailing separator makes the loop wrap seamlessly.
+  function startTitleMarquee(text) {
+    if (!titleDoc || !titleWin) return;
+    if (text === marqueeSource && titleWin.__musicTitleTimer) return;
+    clearTitleTimer();
+    marqueeSource = text;
+    const full = text + "    •    ";
+    let pos = 0;
+    titleDoc.title = full;
+    titleWin.__musicTitleTimer = titleWin.setInterval(() => {
+      pos = (pos + 1) % full.length;
+      titleDoc.title = full.slice(pos) + full.slice(0, pos);
+    }, 280);
+  }
+
+  // Marquee the current track while it plays; otherwise restore the plain title.
+  function syncNowPlayingTitle() {
+    if (!titleDoc) return;
+    const track = isPlaying ? currentTrack() : null;
+    if (!track) {
+      setBaseTitle();
+      return;
+    }
+    const youtube = track.youtubeTitle || track.videoId;
+    startTitleMarquee("Now Playing: " + track.label + " - " + youtube);
+  }
+
   function updatePlayButton() {
-    setIconButton(els.playButton, isPlaying ? "pause" : "play", isPlaying ? "Pause" : "Play");
     setIconButton(els.heroPlay, isPlaying ? "pause" : "play", isPlaying ? "Pause" : "Play");
+    syncNowPlayingTitle();
   }
 
   function ensurePlayer() {
@@ -1342,7 +1468,8 @@ export function initApp(options) {
 
   function selectPlaylist(id) {
     if (id === state.activePlaylistId) return;
-    drawerExpandedPlaylistId = id;
+    drawerSelectedPlaylistId = id;
+    drawerExpandedPlaylistId = null;
     state.activePlaylistId = id;
     currentIndex = 0;
     history = [];
@@ -1374,8 +1501,22 @@ export function initApp(options) {
 
   function enrichTitles() {
     if (!resolveTitles || typeof fetch !== "function") return;
-    activeTracks().slice(0, 16).forEach((track) => {
-      if (track.youtubeTitle || titleRequests.has(track.videoId)) return;
+    // Resolve the official YouTube title for every track in the library that does
+    // not have one yet, no matter which playlist it lives in or where it sits in
+    // the list. The grey "source" line under a track must always settle on the
+    // real video title, so this can't be limited to the active playlist's head.
+    const pending = [];
+    const queued = new Set();
+    state.playlists.forEach((playlist) => {
+      playlist.tracks.forEach((track) => {
+        if (track.youtubeTitle) return;
+        if (titleRequests.has(track.videoId) || queued.has(track.videoId)) return;
+        queued.add(track.videoId);
+        pending.push(track);
+      });
+    });
+
+    pending.forEach((track) => {
       titleRequests.add(track.videoId);
       const endpoint =
         "https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent(track.url);
@@ -1400,7 +1541,9 @@ export function initApp(options) {
           render();
         })
         .catch(() => {
-          /* Title enrichment is best-effort only. */
+          // A transient network failure must not leave the track stuck showing
+          // its id: drop it from the in-flight set so a later render retries.
+          titleRequests.delete(track.videoId);
         });
     });
   }
@@ -1420,10 +1563,30 @@ export function initApp(options) {
   els.drawerClose.addEventListener("click", () => setDrawerOpen(false));
   els.exportPlaylist.addEventListener("click", copyActivePlaylistBulk);
   els.sharePlaylist.addEventListener("click", copyActivePlaylistShareUrl);
-  els.importInfo.addEventListener("click", () => ui.alert(IMPORT_HELP_TEXT, "Bulk import format"));
   els.heroPrevious.addEventListener("click", previousTrack);
   els.heroPlay.addEventListener("click", togglePlay);
+  els.heroStop.addEventListener("click", stop);
   els.heroNext.addEventListener("click", () => nextTrack(false));
+
+  // A small static modal (help / bulk-import format): open from a trigger, close
+  // via its X or Escape. Focus moves into the dialog on open so Escape works and
+  // focus does not linger on a control hidden behind the backdrop.
+  function wireSimpleModal(modalEl, closeEl, openEl) {
+    function setOpen(open) {
+      modalEl.hidden = !open;
+      if (open) window.setTimeout(() => closeEl.focus(), 0);
+    }
+    if (openEl) openEl.addEventListener("click", () => setOpen(true));
+    closeEl.addEventListener("click", () => setOpen(false));
+    modalEl.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+      }
+    });
+  }
+  wireSimpleModal(els.helpModal, els.helpClose, els.helpButton);
+  wireSimpleModal(els.importModal, els.importModalClose, els.importInfo);
 
   els.importButton.addEventListener("click", async () => {
     const result = await importPlaylistText(els.importText.value);
@@ -1451,11 +1614,6 @@ export function initApp(options) {
   });
 
   els.clearLocal.addEventListener("click", clearLocalData);
-
-  els.previousButton.addEventListener("click", previousTrack);
-  els.playButton.addEventListener("click", togglePlay);
-  els.stopButton.addEventListener("click", stop);
-  els.nextButton.addEventListener("click", () => nextTrack(false));
 
   els.shuffleToggle.addEventListener("change", () => {
     state.settings.shuffle = els.shuffleToggle.checked;
