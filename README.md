@@ -148,44 +148,6 @@ It is a short, copy-paste ready guide for emitting the playlist block the user
 pastes into the app. [`PLAYLISTS_FORMAT.md`](PLAYLISTS_FORMAT.md) is the longer
 reference.
 
-## Copyright and responsible use
+## Notes
 
-This is a personal tool for organizing your own YouTube listening (for example,
-videos from your own channel, or public videos you have the right to watch and
-embed). It is built to stay on the right side of YouTube and Google:
-
-- **It never downloads, rips, copies, caches, or rehosts any video or audio.**
-  Playback runs through YouTube's official
-  [IFrame Player API](https://developers.google.com/youtube/iframe_api_reference),
-  so every video plays inside YouTube's own embedded player, subject to the
-  [YouTube API Services Terms](https://developers.google.com/youtube/terms/api-services-terms-of-service)
-  and [Developer Policies](https://developers.google.com/youtube/terms/developer-policies).
-  This is the same embedding mechanism any website uses.
-- **It does not block or strip ads and does not touch analytics.** The embedded
-  player serves YouTube's ads and reporting exactly as it would anywhere else. (If
-  you run an ad blocker, that is your browser blocking those requests, not this
-  app.)
-- **It respects each creator's settings.** A video whose owner disabled embedding
-  simply will not play here.
-- **No video content or playlist lives in this repository.** The code ships with
-  obviously fake placeholder ids only (`VIDEOID0001`, etc.). Real video ids and
-  links exist solely in your browser's `localStorage`, and in share URLs you
-  generate yourself, never in git. So the public repo contains no references to
-  anyone's copyrighted videos.
-- **You are responsible for what you put in it.** Only add content you are allowed
-  to watch and embed.
-
-This project is not affiliated with, endorsed by, or sponsored by YouTube or
-Google. "YouTube" and "Google" are trademarks of Google LLC. The software license
-covers this code only; it grants no rights to any video content.
-
-**Reporting.** This project hosts no audio or video and keeps no copy of anyone's
-playlists, so there is nothing here to take down. If a specific video is
-infringing, report it to YouTube, where it is hosted, not to this repository.
-Issues claiming infringement by embedded videos will be closed, since the videos
-are served by YouTube under YouTube's own terms.
-
-**No warranty.** The software is provided "as is", without warranty of any kind,
-and is intended for lawful personal use. You are responsible for what you play
-through it and for complying with YouTube's Terms of Service and applicable law.
-The authors are not liable for how anyone else uses it. See [`LICENSE`](LICENSE).
+Playback runs through YouTube's official [IFrame Player API](https://developers.google.com/youtube/iframe_api_reference), so videos stream from YouTube with their ads and embedding settings intact; this repo hosts no audio, video, or playlists (only fake placeholder ids), and you're responsible for adding only what you have the right to watch. Not affiliated with YouTube or Google. MIT, no warranty; see [`LICENSE`](LICENSE).
