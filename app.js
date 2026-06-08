@@ -132,7 +132,14 @@ const SHELL = `
       </section>
 
       <section class="drawer-panel drawer-library-panel" aria-label="Playlist list">
-        <div class="drawer-list-title">Playlist list</div>
+        <div class="drawer-list-head">
+          <div class="drawer-list-title">Playlist list</div>
+          <label class="playall-switch" title="Play every playlist together as one queue">
+            <span class="playall-label">Play all</span>
+            <input id="play-all-toggle" type="checkbox" class="playall-input">
+            <span class="playall-track" aria-hidden="true"><span class="playall-knob"></span></span>
+          </label>
+        </div>
         <nav class="playlist-tabs" id="playlist-tabs" aria-label="Playlists"></nav>
       </section>
 
@@ -600,6 +607,7 @@ export function initApp(options) {
     importButton: $("import-button"),
     importStatus: $("import-status"),
     playlistTabs: $("playlist-tabs"),
+    playAllToggle: $("play-all-toggle"),
     clearLocal: $("clear-local"),
     playerFrame: $("player-frame"),
     nowSong: $("now-song"),
@@ -654,9 +662,11 @@ export function initApp(options) {
   setIconButton(els.addButton, "add", "Add");
   setIconButton(els.importFileButton, "upload", "Import from file");
   setIconButton(els.clearLocal, "trash", "Wipe local data");
-  root.querySelector('[data-icon="shuffle"]').innerHTML = icon("shuffle");
-  root.querySelector('[data-icon="loop"]').innerHTML = icon("loop");
-  root.querySelector('[data-icon="eye"]').innerHTML = icon("eye");
+  // Fill every icon placeholder of each kind (the play-all switch reuses the
+  // shuffle glyph, so there can be more than one of a given data-icon).
+  root.querySelectorAll('[data-icon="shuffle"]').forEach((el) => (el.innerHTML = icon("shuffle")));
+  root.querySelectorAll('[data-icon="loop"]').forEach((el) => (el.innerHTML = icon("loop")));
+  root.querySelectorAll('[data-icon="eye"]').forEach((el) => (el.innerHTML = icon("eye")));
   root.querySelector('[title="Shuffle"]').dataset.tooltip = "Shuffle playback";
   root.querySelector('[title="Shuffle"]').removeAttribute("title");
   root.querySelector('[title="Loop"]').dataset.tooltip = "Loop playlist";
@@ -711,7 +721,21 @@ export function initApp(options) {
     saveState(storage, state);
   }
 
+  // "Play all together" is a listening mode: instead of one playlist, the queue
+  // is every playlist's tracks concatenated. It is a read-only view, not a stored
+  // playlist, so nothing is duplicated in state. Duplicate videos across lists are
+  // fine; they just play more than once. While it is on, editing is disabled (no
+  // single target playlist) and the source surfaces as a synthetic playlist.
+  const ALL_ID = "*all*";
+  function playAllOn() {
+    return !!state.settings.playAll && state.playlists.length > 0;
+  }
+  function allTracks() {
+    return state.playlists.flatMap((p) => p.tracks);
+  }
+
   function activePlaylist() {
+    if (playAllOn()) return { id: ALL_ID, name: "All together", tracks: allTracks() };
     return getPlaylist(state, state.activePlaylistId);
   }
 
@@ -1056,8 +1080,11 @@ export function initApp(options) {
       // A row is "selected" once clicked (this is the only highlighted state and
       // the only one that shows controls); "open" means its editor is unfolded.
       // On first appearance nothing is selected, so nothing is coloured.
+      // In play-all mode the drawer is read-only: rows still show, but their
+      // edit controls and editor stay folded since there is no single active list.
+      const editable = !playAllOn();
       const isSelected = playlist.id === drawerSelectedPlaylistId;
-      const isOpen = isSelected && playlist.id === drawerExpandedPlaylistId;
+      const isOpen = editable && isSelected && playlist.id === drawerExpandedPlaylistId;
 
       button.type = "button";
       button.className = "playlist-tab";
@@ -1081,7 +1108,7 @@ export function initApp(options) {
 
       // The collapse, rename, and delete controls live inside the selected row's
       // coloured header and only appear there.
-      if (isSelected) {
+      if (isSelected && editable) {
         const controls = document.createElement("div");
         controls.className = "drawer-playlist-controls";
         const collapse = makeIconButton(
@@ -1116,7 +1143,9 @@ export function initApp(options) {
     if (id === drawerSelectedPlaylistId) return; // already selected, nothing happens
     drawerSelectedPlaylistId = id;
     drawerExpandedPlaylistId = null;
-    if (id !== state.activePlaylistId) {
+    // In play-all mode the queue is every list, so selecting a row must not switch
+    // the active playlist or restart playback; it only moves the highlight.
+    if (!playAllOn() && id !== state.activePlaylistId) {
       selectPlaylist(id);
     } else {
       renderTabs();
@@ -1203,9 +1232,10 @@ export function initApp(options) {
 
     const fragment = document.createDocumentFragment();
     rows.forEach(({ track, index }) => {
+      const editable = !playAllOn();
       const row = document.createElement("div");
       row.className = "track" + (index === currentIndex ? " active" : "");
-      row.setAttribute("draggable", "true");
+      if (editable) row.setAttribute("draggable", "true");
       row.dataset.index = String(index);
 
       const thumbButton = document.createElement("button");
@@ -1244,55 +1274,61 @@ export function initApp(options) {
       meta.append(indexText, link);
       info.append(title, source, meta);
 
-      const actions = document.createElement("div");
-      actions.className = "track-actions";
+      // While playing everything together there is no single playlist to reorder,
+      // rename, or remove within, so the row is play-only (no actions, no drag).
+      if (editable) {
+        const actions = document.createElement("div");
+        actions.className = "track-actions";
 
-      const up = makeIconButton("up", "Move up");
-      up.disabled = index === 0;
-      up.addEventListener("click", () => reorder(index, index - 1));
+        const up = makeIconButton("up", "Move up");
+        up.disabled = index === 0;
+        up.addEventListener("click", () => reorder(index, index - 1));
 
-      const down = makeIconButton("down", "Move down");
-      down.disabled = index === tracks.length - 1;
-      down.addEventListener("click", () => reorder(index, index + 1));
+        const down = makeIconButton("down", "Move down");
+        down.disabled = index === tracks.length - 1;
+        down.addEventListener("click", () => reorder(index, index + 1));
 
-      const rename = makeIconButton("edit", "Rename track");
-      rename.addEventListener("click", async () => {
-        const next = await ui.prompt("Track name", track.label);
-        if (next == null) return;
-        renameTrack(state, state.activePlaylistId, index, next);
-        persist();
-        render();
-      });
+        const rename = makeIconButton("edit", "Rename track");
+        rename.addEventListener("click", async () => {
+          const next = await ui.prompt("Track name", track.label);
+          if (next == null) return;
+          renameTrack(state, state.activePlaylistId, index, next);
+          persist();
+          render();
+        });
 
-      const remove = makeIconButton("trash", "Remove track", "icon-button danger");
-      remove.addEventListener("click", () => removeAt(index));
+        const remove = makeIconButton("trash", "Remove track", "icon-button danger");
+        remove.addEventListener("click", () => removeAt(index));
 
-      actions.append(up, down, rename, remove);
-      row.append(thumbButton, info, actions);
+        actions.append(up, down, rename, remove);
+        row.append(thumbButton, info, actions);
 
-      row.addEventListener("dragstart", (event) => {
-        row.classList.add("dragging");
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", String(index));
-          // Pin the drag ghost to just this row. Without an explicit drag image
-          // the browser can snapshot a larger region (e.g. the player footer
-          // underneath), so the row looks like it drags glued to the dock.
-          if (typeof event.dataTransfer.setDragImage === "function") {
-            const rect = row.getBoundingClientRect();
-            const offsetX = (event.clientX || 0) - rect.left;
-            const offsetY = (event.clientY || 0) - rect.top;
-            event.dataTransfer.setDragImage(row, offsetX, offsetY);
+        row.addEventListener("dragstart", (event) => {
+          row.classList.add("dragging");
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", String(index));
+            // Pin the drag ghost to just this row. Without an explicit drag image
+            // the browser can snapshot a larger region (e.g. the player footer
+            // underneath), so the row looks like it drags glued to the dock.
+            if (typeof event.dataTransfer.setDragImage === "function") {
+              const rect = row.getBoundingClientRect();
+              const offsetX = (event.clientX || 0) - rect.left;
+              const offsetY = (event.clientY || 0) - rect.top;
+              event.dataTransfer.setDragImage(row, offsetX, offsetY);
+            }
           }
-        }
-      });
-      row.addEventListener("dragend", () => row.classList.remove("dragging"));
-      row.addEventListener("dragover", (event) => event.preventDefault());
-      row.addEventListener("drop", (event) => {
-        event.preventDefault();
-        const from = Number(event.dataTransfer ? event.dataTransfer.getData("text/plain") : NaN);
-        if (Number.isInteger(from)) reorder(from, index);
-      });
+        });
+        row.addEventListener("dragend", () => row.classList.remove("dragging"));
+        row.addEventListener("dragover", (event) => event.preventDefault());
+        row.addEventListener("drop", (event) => {
+          event.preventDefault();
+          const from = Number(event.dataTransfer ? event.dataTransfer.getData("text/plain") : NaN);
+          if (Number.isInteger(from)) reorder(from, index);
+        });
+      } else {
+        row.append(thumbButton, info);
+      }
       row.addEventListener("click", (event) => {
         if (event.target.closest("button, a, input, textarea")) return;
         playIndex(index);
@@ -1321,7 +1357,15 @@ export function initApp(options) {
     els.shuffleToggle.checked = state.settings.shuffle;
     els.loopToggle.checked = state.settings.loop;
     els.showVideoToggle.checked = state.settings.showVideo;
+    els.playAllToggle.checked = state.settings.playAll;
     els.volume.value = String(state.settings.volume);
+    // Play-all is a read-only listening mode: there is no single playlist to add
+    // to, export, or share, so lock those entry points while it is on.
+    const lockEditing = playAllOn();
+    els.addInput.disabled = lockEditing;
+    els.addButton.disabled = lockEditing;
+    els.exportPlaylist.disabled = lockEditing;
+    els.sharePlaylist.disabled = lockEditing;
     applyShowVideo();
     enrichTitles();
   }
@@ -1763,6 +1807,7 @@ export function initApp(options) {
 
   els.addForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (playAllOn()) return; // no single target playlist while playing everything
     let playlistId = state.activePlaylistId;
     if (!activePlaylist()) {
       // No playlist yet: spin up a default one so adding a song just works.
@@ -1781,6 +1826,21 @@ export function initApp(options) {
   });
 
   els.clearLocal.addEventListener("click", clearLocalData);
+
+  // Switching the source (single playlist <-> all together) restarts from the top
+  // of the new queue, the same reset selecting a playlist does.
+  els.playAllToggle.addEventListener("change", () => {
+    state.settings.playAll = els.playAllToggle.checked;
+    currentIndex = 0;
+    history = [];
+    shuffleQueue = [];
+    els.search.value = "";
+    if (state.settings.shuffle) buildShuffleQueue();
+    persist();
+    render();
+    resetPlayerForSelection("Ready");
+    renderNow();
+  });
 
   els.shuffleToggle.addEventListener("change", () => {
     state.settings.shuffle = els.shuffleToggle.checked;

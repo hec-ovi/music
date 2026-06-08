@@ -10,7 +10,7 @@
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
-![tests: 88 passing](https://img.shields.io/badge/tests-88%20passing-black.svg)
+![tests: 93 passing](https://img.shields.io/badge/tests-93%20passing-black.svg)
 
 <table>
   <tr>
@@ -46,6 +46,9 @@ loop, volume, and direct YouTube links. If you just want it as background audio,
 - Reorder tracks (drag, or the up/down arrows), rename or remove them, add more
   on the fly.
 - Play any track on demand, shuffle, loop, scrub the timeline, set volume.
+- Flip "Play all" (a toggle over the playlist list) to play every playlist as one
+  continuous queue. Shuffle then mixes your whole library; duplicates across lists
+  just raise a track's odds. It is a listening mode, so editing is off while it's on.
 - See YouTube thumbnails for playlists and tracks. Tracks you add as a bare id or
   link with no name get auto-named from the YouTube title (when the browser allows
   the lookup), and any name is cleaned of commas, dots, and other punctuation so it

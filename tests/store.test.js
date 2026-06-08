@@ -315,6 +315,15 @@ describe("persistence", () => {
     expect(loadState(localStorage)).toEqual(emptyState());
   });
 
+  it("defaults playAll off and round-trips it when set", () => {
+    expect(emptyState().settings.playAll).toBe(false);
+
+    const state = emptyState();
+    state.settings.playAll = true;
+    saveState(localStorage, state);
+    expect(loadState(localStorage).settings.playAll).toBe(true);
+  });
+
   it("drops tracks with invalid ids when normalizing", () => {
     localStorage.setItem(
       STORAGE_KEY,

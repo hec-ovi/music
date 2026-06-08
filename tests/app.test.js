@@ -859,3 +859,71 @@ describe("hero now-playing lines", () => {
     expect(root.querySelector("#queue-name").textContent).toBe("Hero");
   });
 });
+
+describe("play all together", () => {
+  async function withTwoPlaylists() {
+    const user = userEvent.setup();
+    const harness = mount();
+    await importViaBulk(
+      user,
+      harness.q,
+      "First, [A | VIDEOID0001, B | VIDEOID0002]\nSecond, [C | VIDEOID0003]"
+    );
+    return { user, ...harness };
+  }
+
+  it("merges every playlist into one queue and labels it 'All together'", async () => {
+    const { user, root, q } = await withTwoPlaylists();
+
+    await user.click(q.getByRole("checkbox", { name: /play all/i }));
+
+    // The queue is now the union of both playlists, in order, with the label changed.
+    expect(root.querySelector("#queue-name").textContent).toBe("All together");
+    expect(root.querySelector("#queue-count").textContent).toBe("3 tracks");
+    expect([...root.querySelectorAll("#track-list .track-source")].map((n) => n.textContent)).toEqual([
+      "VIDEOID0001",
+      "VIDEOID0002",
+      "VIDEOID0003"
+    ]);
+  });
+
+  it("plays a track that lives in a different playlist through the merged queue", async () => {
+    const { user, root } = await withTwoPlaylists();
+
+    await user.click(within(root).getByRole("checkbox", { name: /play all/i }));
+    // "C" comes from the second playlist; it only exists in the queue because of all-mode.
+    await user.click(within(root.querySelector("#track-list")).getByRole("button", { name: "C" }));
+
+    expect(root.querySelector("#now-song").textContent).toBe("C");
+  });
+
+  it("locks editing while play-all is on (add disabled, no row actions, no drag)", async () => {
+    const { user, root } = await withTwoPlaylists();
+
+    // Sanity: editing is available in normal single-playlist mode.
+    expect(root.querySelector("#add-input").disabled).toBe(false);
+    expect(root.querySelectorAll("#track-list .track-actions").length).toBeGreaterThan(0);
+
+    await user.click(within(root).getByRole("checkbox", { name: /play all/i }));
+
+    expect(root.querySelector("#add-input").disabled).toBe(true);
+    expect(root.querySelector("#add-button").disabled).toBe(true);
+    // Rows are play-only: no reorder/rename/remove actions and not draggable.
+    expect(root.querySelectorAll("#track-list .track-actions").length).toBe(0);
+    expect(root.querySelector("#track-list .track").getAttribute("draggable")).toBe(null);
+  });
+
+  it("persists the toggle and restores a single playlist when turned off", async () => {
+    const { user, root, q } = await withTwoPlaylists();
+    const toggle = q.getByRole("checkbox", { name: /play all/i });
+
+    await user.click(toggle);
+    expect(loadState(localStorage).settings.playAll).toBe(true);
+
+    await user.click(toggle);
+    expect(loadState(localStorage).settings.playAll).toBe(false);
+    // Back to a normal single playlist: editing is available again.
+    expect(root.querySelector("#queue-name").textContent).not.toBe("All together");
+    expect(root.querySelector("#add-input").disabled).toBe(false);
+  });
+});
