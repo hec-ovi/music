@@ -5,3 +5,6 @@ session
 Pasted image.png
 *.mp4
 Screencast*
+
+# Personal playlists: private, never committed (see README privacy note)
+playlists/
