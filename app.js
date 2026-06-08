@@ -10,6 +10,7 @@ import {
   deletePlaylist,
   renamePlaylist,
   addTracks,
+  parseTracks,
   removeTrack,
   renameTrack,
   moveTrack,
@@ -1762,11 +1763,21 @@ export function initApp(options) {
 
   els.addForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    let playlistId = state.activePlaylistId;
     if (!activePlaylist()) {
-      setStatus("Create a playlist first");
-      return;
+      // No playlist yet: spin up a default one so adding a song just works.
+      // Only do it when there's something real to add, so blank submits don't
+      // leave behind an empty "My Playlist".
+      if (!parseTracks(els.addInput.value).length) {
+        setStatus("No valid ids or links found");
+        return;
+      }
+      const playlist = createPlaylist(state, "My Playlist");
+      playlistId = playlist.id;
+      drawerSelectedPlaylistId = playlist.id;
+      drawerExpandedPlaylistId = playlist.id;
     }
-    addToPlaylist(state.activePlaylistId, els.addInput.value, els.addInput);
+    addToPlaylist(playlistId, els.addInput.value, els.addInput);
   });
 
   els.clearLocal.addEventListener("click", clearLocalData);

@@ -115,6 +115,39 @@ describe("creating and filling a playlist", () => {
     await user.click(q.getByRole("button", { name: "Add" }));
     expect(root.querySelector("#status-text").textContent).toMatch(/No valid ids/);
   });
+
+  it("auto-creates a default 'My Playlist' when adding a song with no playlist", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+
+    // Fresh library: nothing exists yet.
+    expect(root.querySelectorAll(".track")).toHaveLength(0);
+
+    await user.type(q.getByLabelText("Add tracks"), "VIDEOID0001");
+    await user.click(q.getByRole("button", { name: "Add" }));
+
+    expect(q.getByRole("button", { name: /My Playlist/ })).toBeTruthy();
+    expect(root.querySelectorAll(".track")).toHaveLength(1);
+    expect(root.querySelector(".track-source").textContent).toBe("VIDEOID0001");
+
+    const saved = loadState(localStorage);
+    expect(saved.playlists).toHaveLength(1);
+    expect(saved.playlists[0].name).toBe("My Playlist");
+    expect(saved.playlists[0].tracks.map((t) => t.videoId)).toEqual(["VIDEOID0001"]);
+    expect(saved.activePlaylistId).toBe(saved.playlists[0].id);
+  });
+
+  it("does not create a playlist when the no-playlist add has no valid ids", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+
+    await user.type(q.getByLabelText("Add tracks"), "just some words");
+    await user.click(q.getByRole("button", { name: "Add" }));
+
+    expect(root.querySelector("#status-text").textContent).toMatch(/No valid ids/);
+    expect(loadState(localStorage).playlists).toHaveLength(0);
+    expect(q.queryByRole("button", { name: /My Playlist/ })).toBeNull();
+  });
 });
 
 describe("playback", () => {

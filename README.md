@@ -10,7 +10,7 @@
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
-![tests: 86 passing](https://img.shields.io/badge/tests-86%20passing-black.svg)
+![tests: 88 passing](https://img.shields.io/badge/tests-88%20passing-black.svg)
 
 <table>
   <tr>
@@ -40,7 +40,9 @@ loop, volume, and direct YouTube links. If you just want it as background audio,
   import never silently overwrites or merges what you already have. You can also
   import a playlist from a `.md`/`.txt` file.
 - Add tracks by pasting a video id or any YouTube link. Both work in the same
-  field, mixed and comma or newline separated: `id, link, id, link`.
+  field, mixed and comma or newline separated: `id, link, id, link`. With an empty
+  library, the first add spins up a default "My Playlist" for you, so you can drop
+  in a song without making a playlist first.
 - Reorder tracks (drag, or the up/down arrows), rename or remove them, add more
   on the fly.
 - Play any track on demand, shuffle, loop, scrub the timeline, set volume.
