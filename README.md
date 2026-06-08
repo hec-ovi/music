@@ -10,7 +10,7 @@
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
-![tests: 84 passing](https://img.shields.io/badge/tests-84%20passing-black.svg)
+![tests: 86 passing](https://img.shields.io/badge/tests-86%20passing-black.svg)
 
 <table>
   <tr>
