@@ -37,7 +37,8 @@ const ICONS = {
   loop: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h8.6L14 5.4 15.4 4 19.4 8l-4 4L14 10.6 15.6 9H7a3 3 0 0 0 0 6h1v2H7A5 5 0 0 1 7 7z"/><path d="M17 17H8.4l1.6 1.6L8.6 20l-4-4 4-4 1.4 1.4L8.4 15H17a3 3 0 0 0 0-6h-1V7h1a5 5 0 0 1 0 10z"/></svg>',
   eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.2.2.5.2 1.1 0 1.6C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.2a1.8 1.8 0 0 1 0-1.6C3.5 9.2 7 5 12 5zm0 2c-4 0-6.9 3.3-8 5 1.1 1.7 4 5 8 5s6.9-3.3 8-5c-1.1-1.7-4-5-8-5z"/><path d="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg>',
   more: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM18 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>',
-  info: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.9a8.1 8.1 0 1 1 0 16.2 8.1 8.1 0 0 1 0-16.2z"/><path d="M11 10.5h2V17h-2zM11 6.7h2v2.2h-2z"/></svg>'
+  info: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.9a8.1 8.1 0 1 1 0 16.2 8.1 8.1 0 0 1 0-16.2z"/><path d="M11 10.5h2V17h-2zM11 6.7h2v2.2h-2z"/></svg>',
+  upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 5 5-1.4 1.4L13 7.8V16h-2V7.8L8.4 10.4 7 9z"/><path d="M5 18h14v2H5z"/></svg>'
 };
 
 const DUPLICATE_PLAYLIST_MESSAGE = "playlist already exist, remove actual, or rename it";
@@ -64,7 +65,7 @@ const SHELL = `
       </div>
       <div class="hero-actions" aria-label="Playlist tools">
         <div class="hero-tools" aria-label="Playlist tools">
-          <button class="hero-tool-button" id="export-playlist" type="button" aria-label="Copy playlist bulk format"></button>
+          <button class="hero-tool-button" id="export-playlist" type="button" aria-label="Export playlist"></button>
           <button class="hero-tool-button" id="share-playlist" type="button" aria-label="Copy share link"></button>
           <button class="hero-tool-button" id="help-button" type="button" aria-label="How to use"></button>
         </div>
@@ -103,21 +104,30 @@ const SHELL = `
         <button class="round-button" id="drawer-close" type="button" aria-label="Close playlists"></button>
       </div>
 
-      <section class="drawer-panel drawer-add-panel" id="playlist-add-panel" aria-label="Add playlist">
-        <div class="drawer-section-title">Add playlist</div>
+      <section class="drawer-panel drawer-add-panel" id="playlist-add-panel" aria-label="Add playlists">
+        <div class="drawer-section-title">Add playlists</div>
 
-        <section class="import" id="import-panel" aria-label="Bulk import">
+        <section class="import" id="import-panel" aria-label="Paste playlists">
           <div class="import-head">
-            <div class="import-title">Bulk import format</div>
-            <button class="info-button" id="import-info" type="button" aria-label="Import format help"></button>
+            <div class="import-title">Paste playlists</div>
+            <button class="info-button" id="import-info" type="button" aria-label="Playlist format help"></button>
           </div>
-          <p class="hint"><code>Playlist Title, [id, https://youtu.be/id, Song Name | id]</code></p>
-          <textarea id="import-text" class="import-text" rows="3" placeholder="My Playlist, [VIDEOID0001, Track label | VIDEOID0002]" aria-label="Bulk import"></textarea>
+          <p class="hint">Write a playlist as text. The "?" explains the format.</p>
+          <textarea id="import-text" class="import-text" rows="3" placeholder="My Playlist, [https://youtu.be/VIDEOID, Song name | https://youtu.be/VIDEOID]" aria-label="Paste playlists"></textarea>
           <div class="inline-actions">
-            <button class="mode-button import-action" id="import-button" type="button">Import</button>
+            <button class="mode-button import-action" id="import-button" type="button">Add to library</button>
             <span class="hint" id="import-status"></span>
           </div>
         </section>
+
+        <div class="drawer-mini-panel import-mini" aria-label="Import from file">
+          <div>
+            <div class="drawer-section-title">Import</div>
+            <p class="drawer-note">Load playlists straight from a <code>.md</code> or <code>.txt</code> file.</p>
+          </div>
+          <button class="round-button import-file-action" id="import-file-button" type="button" aria-label="Import from file"></button>
+          <input id="import-file-input" type="file" accept=".md,.txt,text/plain,text/markdown" hidden>
+        </div>
       </section>
 
       <section class="drawer-panel drawer-library-panel" aria-label="Playlist list">
@@ -127,10 +137,10 @@ const SHELL = `
 
       <section class="drawer-panel drawer-reset-panel" aria-label="Local data">
         <div>
-          <div class="drawer-section-title">Local data</div>
+          <div class="drawer-section-title">Remove</div>
           <p class="drawer-note">Wipe all playlists and player settings stored in this browser.</p>
         </div>
-        <button class="button clean-action" id="clear-local" type="button">Clean local data</button>
+        <button class="round-button danger clean-action" id="clear-local" type="button" aria-label="Wipe local data"></button>
       </section>
     </aside>
 
@@ -206,16 +216,47 @@ const SHELL = `
   <div class="modal-backdrop help-backdrop" id="import-modal" hidden>
     <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
       <button class="modal-close" id="import-modal-close" type="button" aria-label="Close"></button>
-      <h2 id="import-modal-title">Bulk import format</h2>
-      <p class="help-intro">One <strong>Playlist Title</strong> per line. Tracks go inside <code>[ ]</code>, comma-separated. Mix bare video ids, full links, and <code>Label | id</code> pairs.</p>
-      <div class="help-keys-title">Format</div>
-      <pre class="help-snippet">Playlist Title, [id, https://youtu.be/id, Song Name | id]</pre>
-      <div class="help-keys-title">Examples</div>
-      <pre class="help-snippet">Chill Mix, [VIDEOID0001, https://youtu.be/VIDEOID0002]
-Focus, [Deep work | VIDEOID0001, VIDEOID0002]</pre>
+      <h2 id="import-modal-title">Playlist format</h2>
+      <p class="help-intro">Each line is one playlist: a <strong>title</strong>, then its songs in square brackets, separated by commas.</p>
+      <pre class="help-snippet">My Playlist, [song, song, song]</pre>
+
+      <div class="help-keys-title">A song</div>
+      <p class="help-intro">A song is a <strong>YouTube link</strong> (or just the 11-character id):</p>
+      <pre class="help-snippet">https://youtu.be/VIDEOID</pre>
+
+      <div class="help-keys-title">Naming a song (optional)</div>
+      <p class="help-intro">Put a name <strong>before</strong> the link and a vertical bar <code>|</code>. The bar only separates the name from the link, it does not mean "or". The link is always required, so a name on its own does nothing.</p>
+      <pre class="help-snippet">Song name | https://youtu.be/VIDEOID</pre>
+
+      <div class="help-keys-title">Putting it together</div>
+      <pre class="help-snippet">Chill Mix, [https://youtu.be/VIDEOID, Deep work | https://youtu.be/VIDEOID]</pre>
+
       <div class="help-keys-title">Empty playlist</div>
-      <p class="help-intro">A title on its own line (no brackets) just makes an empty playlist:</p>
+      <p class="help-intro">Just a title on its own line (no brackets):</p>
       <pre class="help-snippet">My New Playlist</pre>
+    </div>
+  </div>
+
+  <div class="modal-backdrop help-backdrop" id="export-modal" hidden>
+    <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+      <button class="modal-close" id="export-modal-close" type="button" aria-label="Close"></button>
+      <h2 id="export-modal-title">Export playlist</h2>
+      <p class="help-intro">Save <strong id="export-name">this playlist</strong> as text you can re-import anywhere. It holds only ids/links, no personal data.</p>
+      <div class="export-actions">
+        <button class="button primary" id="export-copy" type="button">Copy to clipboard</button>
+        <button class="button" id="export-download" type="button">Download .md file</button>
+      </div>
+      <span class="hint" id="export-status"></span>
+    </div>
+  </div>
+
+  <div class="modal-backdrop help-backdrop" id="share-modal" hidden>
+    <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+      <button class="modal-close" id="share-modal-close" type="button" aria-label="Close"></button>
+      <h2 id="share-modal-title">Share playlist</h2>
+      <p class="help-intro">The link to <strong id="share-name">this playlist</strong> <span id="share-tip">is on your clipboard. Paste it anywhere to share.</span></p>
+      <pre class="help-snippet" id="share-url"></pre>
+      <p class="help-intro">Whoever opens the link gets this playlist loaded in their own browser, nothing is stored anywhere else.</p>
     </div>
   </div>
 
@@ -302,6 +343,45 @@ async function copyText(text) {
   }
   textarea.remove();
   return ok;
+}
+
+// Save `text` to a local file via a transient object URL. The content is plain
+// text; the .md extension just makes it open nicely and re-import cleanly.
+function downloadText(text, filename) {
+  if (typeof document === "undefined" || typeof URL === "undefined" || !URL.createObjectURL) {
+    return false;
+  }
+  const blob = new Blob([text], { type: "text/markdown" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+// Read an uploaded file as text. Uses FileReader for the widest support (every
+// browser plus jsdom), resolving to the file's contents.
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result == null ? "" : reader.result));
+    reader.onerror = () => reject(reader.error || new Error("read failed"));
+    reader.readAsText(file);
+  });
+}
+
+// Turn a playlist name into a safe file name (keep letters/numbers/space/-, then
+// hyphenate). Falls back to "playlist" so the download always has a name.
+function playlistFileName(name) {
+  const base = String(name == null ? "" : name)
+    .replace(/[^\w\- ]+/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+  return (base || "playlist") + ".md";
 }
 
 function tooltipTargetFrom(node) {
@@ -494,6 +574,19 @@ export function initApp(options) {
     helpClose: $("help-close"),
     importModal: $("import-modal"),
     importModalClose: $("import-modal-close"),
+    importFileInput: $("import-file-input"),
+    importFileButton: $("import-file-button"),
+    exportModal: $("export-modal"),
+    exportModalClose: $("export-modal-close"),
+    exportName: $("export-name"),
+    exportCopy: $("export-copy"),
+    exportDownload: $("export-download"),
+    exportStatus: $("export-status"),
+    shareModal: $("share-modal"),
+    shareModalClose: $("share-modal-close"),
+    shareName: $("share-name"),
+    shareTip: $("share-tip"),
+    shareUrl: $("share-url"),
     heroPrevious: $("hero-previous"),
     heroPlay: $("hero-play"),
     heroStop: $("hero-stop"),
@@ -543,7 +636,7 @@ export function initApp(options) {
     tooltip: $("tooltip")
   };
 
-  setIconButton(els.exportPlaylist, "import", "Copy playlist bulk format");
+  setIconButton(els.exportPlaylist, "import", "Export playlist");
   setIconButton(els.sharePlaylist, "share", "Copy share link");
   setIconButton(els.helpButton, "info", "How to use");
   setIconButton(els.drawerClose, "close", "Close playlists");
@@ -551,11 +644,15 @@ export function initApp(options) {
   setIconButton(els.heroPlay, "play", "Play");
   setIconButton(els.heroStop, "stop", "Stop");
   setIconButton(els.heroNext, "next", "Next");
-  setIconButton(els.importInfo, "info", "Import format help");
+  setIconButton(els.importInfo, "info", "Playlist format help");
   setIconButton(els.modalClose, "close", "Close");
   setIconButton(els.helpClose, "close", "Close");
   setIconButton(els.importModalClose, "close", "Close");
+  setIconButton(els.exportModalClose, "close", "Close");
+  setIconButton(els.shareModalClose, "close", "Close");
   setIconButton(els.addButton, "add", "Add");
+  setIconButton(els.importFileButton, "upload", "Import from file");
+  setIconButton(els.clearLocal, "trash", "Wipe local data");
   root.querySelector('[data-icon="shuffle"]').innerHTML = icon("shuffle");
   root.querySelector('[data-icon="loop"]').innerHTML = icon("loop");
   root.querySelector('[data-icon="eye"]').innerHTML = icon("eye");
@@ -677,19 +774,6 @@ export function initApp(options) {
     }
   }
 
-  // Copy actions deliberately leave the status line alone: changing its text
-  // reflows the footer and nudges the controls, so they give no status feedback.
-  async function copyActivePlaylistBulk() {
-    const playlist = activePlaylist();
-    if (!playlist) return;
-    await copyText(playlistToBulkText(playlist));
-  }
-
-  async function copyActivePlaylistShareUrl() {
-    const playlist = activePlaylist();
-    if (!playlist) return;
-    await copyText(playlistShareUrl(playlist));
-  }
 
   async function clearLocalData() {
     const ok = await ui.confirm(
@@ -1561,18 +1645,18 @@ export function initApp(options) {
     setDrawerOpen(els.playlistDrawer.dataset.open !== "true");
   });
   els.drawerClose.addEventListener("click", () => setDrawerOpen(false));
-  els.exportPlaylist.addEventListener("click", copyActivePlaylistBulk);
-  els.sharePlaylist.addEventListener("click", copyActivePlaylistShareUrl);
   els.heroPrevious.addEventListener("click", previousTrack);
   els.heroPlay.addEventListener("click", togglePlay);
   els.heroStop.addEventListener("click", stop);
   els.heroNext.addEventListener("click", () => nextTrack(false));
 
-  // A small static modal (help / bulk-import format): open from a trigger, close
-  // via its X or Escape. Focus moves into the dialog on open so Escape works and
-  // focus does not linger on a control hidden behind the backdrop.
-  function wireSimpleModal(modalEl, closeEl, openEl) {
+  // A small static modal (help / format / export): open from a trigger, close via
+  // its X or Escape. Focus moves into the dialog on open so Escape works and focus
+  // does not linger on a control hidden behind the backdrop. onOpen runs first so
+  // a modal can refresh its contents (e.g. the current playlist name).
+  function wireSimpleModal(modalEl, closeEl, openEl, onOpen) {
     function setOpen(open) {
+      if (open && onOpen) onOpen();
       modalEl.hidden = !open;
       if (open) window.setTimeout(() => closeEl.focus(), 0);
     }
@@ -1584,24 +1668,85 @@ export function initApp(options) {
         setOpen(false);
       }
     });
+    return setOpen;
   }
   wireSimpleModal(els.helpModal, els.helpClose, els.helpButton);
   wireSimpleModal(els.importModal, els.importModalClose, els.importInfo);
+  wireSimpleModal(els.exportModal, els.exportModalClose, els.exportPlaylist, () => {
+    const playlist = activePlaylist();
+    els.exportName.textContent = playlist ? '"' + playlist.name + '"' : "this playlist";
+    els.exportStatus.textContent = "";
+  });
+
+  // Share copies the link, then opens a modal confirming it is on the clipboard
+  // and showing the link itself as a fallback to select and copy by hand.
+  const setShareOpen = wireSimpleModal(els.shareModal, els.shareModalClose);
+  els.sharePlaylist.addEventListener("click", async () => {
+    const playlist = activePlaylist();
+    if (!playlist) return;
+    const url = playlistShareUrl(playlist);
+    const ok = await copyText(url);
+    els.shareName.textContent = '"' + playlist.name + '"';
+    els.shareTip.textContent = ok
+      ? "is on your clipboard. Paste it anywhere to share."
+      : "is in the box below. Select it and copy it to share.";
+    els.shareUrl.textContent = url;
+    setShareOpen(true);
+  });
+
+  function reportImport(result, statusEl) {
+    if (!result.summary.length) {
+      statusEl.textContent = "Nothing imported. Check the format.";
+      return false;
+    }
+    if (!result.imported.length) {
+      statusEl.textContent = DUPLICATE_PLAYLIST_MESSAGE;
+      return false;
+    }
+    statusEl.textContent =
+      "Imported " + result.imported.length + " playlist(s), " + result.totalAdded + " track(s)." +
+      (result.duplicates.length ? " Skipped " + result.duplicates.length + " duplicate(s)." : "");
+    return true;
+  }
 
   els.importButton.addEventListener("click", async () => {
     const result = await importPlaylistText(els.importText.value);
-    if (!result.summary.length) {
-      els.importStatus.textContent = "Nothing imported. Check the format.";
+    if (reportImport(result, els.importStatus)) els.importText.value = "";
+  });
+
+  els.importFileButton.addEventListener("click", () => els.importFileInput.click());
+  els.importFileInput.addEventListener("change", async () => {
+    const file = els.importFileInput.files && els.importFileInput.files[0];
+    els.importFileInput.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    let text = "";
+    try {
+      text = await readFileAsText(file);
+    } catch (_) {
+      els.importStatus.textContent = "Could not read that file.";
       return;
     }
-    if (!result.imported.length) {
-      els.importStatus.textContent = DUPLICATE_PLAYLIST_MESSAGE;
+    reportImport(await importPlaylistText(text), els.importStatus);
+  });
+
+  els.exportCopy.addEventListener("click", async () => {
+    const playlist = activePlaylist();
+    if (!playlist) {
+      els.exportStatus.textContent = "No playlist selected.";
       return;
     }
-    els.importStatus.textContent =
-      "Imported " + result.imported.length + " playlist(s), " + result.totalAdded + " track(s)." +
-      (result.duplicates.length ? " Skipped " + result.duplicates.length + " duplicate(s)." : "");
-    els.importText.value = "";
+    const ok = await copyText(playlistToBulkText(playlist));
+    els.exportStatus.textContent = ok ? "Copied to clipboard." : "Copy failed, select the text manually.";
+  });
+
+  els.exportDownload.addEventListener("click", () => {
+    const playlist = activePlaylist();
+    if (!playlist) {
+      els.exportStatus.textContent = "No playlist selected.";
+      return;
+    }
+    const ok = downloadText(playlistToBulkText(playlist), playlistFileName(playlist.name));
+    els.exportStatus.textContent = ok ? "Downloaded." : "Download not supported here.";
   });
 
   els.addForm.addEventListener("submit", (event) => {

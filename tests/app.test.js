@@ -51,11 +51,11 @@ function mount(extra = {}) {
 // The only way to create a playlist now is the bulk import box. A bare title
 // (no brackets) makes an empty playlist; "Title, [ids]" makes a filled one.
 async function importViaBulk(user, q, text) {
-  const box = q.getByRole("textbox", { name: "Bulk import" });
+  const box = q.getByRole("textbox", { name: "Paste playlists" });
   await user.click(box);
   await user.clear(box);
   await user.paste(text);
-  await user.click(q.getByRole("button", { name: "Import" }));
+  await user.click(q.getByRole("button", { name: "Add to library" }));
 }
 
 beforeEach(() => {
@@ -308,9 +308,9 @@ describe("bulk import", () => {
       "First Playlist, [Track one | VIDEOID0002, VIDEOID0003]",
       "Second Playlist, [VIDEOID0005, Track three | VIDEOID0006]"
     ].join("\n");
-    await user.click(q.getByRole("textbox", { name: "Bulk import" }));
+    await user.click(q.getByRole("textbox", { name: "Paste playlists" }));
     await user.paste(text); // realistic: the user pastes the agent's output
-    await user.click(q.getByRole("button", { name: "Import" }));
+    await user.click(q.getByRole("button", { name: "Add to library" }));
 
     expect(q.getByRole("button", { name: /First Playlist/ })).toBeTruthy();
     expect(q.getByRole("button", { name: /Second Playlist/ })).toBeTruthy();
@@ -344,36 +344,108 @@ describe("bulk import", () => {
     expect(root.querySelector("#import-status").textContent).toMatch(/already exist/);
   });
 
-  it("opens the bulk import format modal with snippet examples", async () => {
+  it("opens the playlist format modal explaining the pipe and the label rule", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
-    await user.click(q.getByRole("button", { name: "Import format help" }));
+    await user.click(q.getByRole("button", { name: "Playlist format help" }));
     const modal = root.querySelector("#import-modal");
     expect(modal.hidden).toBe(false);
-    expect(root.querySelector("#import-modal-title").textContent).toBe("Bulk import format");
-    expect(modal.textContent).toMatch(/Playlist Title/);
-    expect(modal.textContent).toMatch(/empty playlist/);
+    expect(root.querySelector("#import-modal-title").textContent).toBe("Playlist format");
+    // The | is explained as a separator (not "or") and a name alone is useless.
+    expect(modal.textContent).toMatch(/does not mean/i);
+    expect(modal.textContent).toMatch(/name on its own does nothing/i);
+    expect(modal.textContent).toMatch(/empty playlist/i);
     // Examples are shown in dedicated snippet boxes.
     expect(modal.querySelectorAll(".help-snippet").length).toBeGreaterThan(0);
   });
 
-  it("copying a playlist leaves the playback status line untouched", async () => {
+  it("export and share leave the playback status line untouched", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     await importViaBulk(user, q, "Mix, [VIDEOID0001]");
     const status = root.querySelector("#status-text");
     const before = status.textContent;
-    root.querySelector("#export-playlist").click();
-    root.querySelector("#share-playlist").click();
+
+    await user.click(root.querySelector("#export-playlist")); // opens the export modal
+    await user.click(root.querySelector("#export-copy")); // copy to clipboard
+    root.querySelector("#share-playlist").click(); // copy share link
     await Promise.resolve();
     await Promise.resolve();
+
     expect(status.textContent).toBe(before);
+    // Copy feedback lands in the modal's own status, not the player status line.
+    expect(root.querySelector("#export-status").textContent).toMatch(/clipboard|failed/i);
+  });
+
+  it("downloads the active playlist as a .md file named after it", async () => {
+    const user = userEvent.setup();
+    const createURL = vi.fn(() => "blob:mock");
+    const origCreate = URL.createObjectURL;
+    const origRevoke = URL.revokeObjectURL;
+    const origClick = HTMLAnchorElement.prototype.click;
+    URL.createObjectURL = createURL;
+    URL.revokeObjectURL = vi.fn();
+    let downloaded = null;
+    HTMLAnchorElement.prototype.click = function () {
+      downloaded = this.download;
+    };
+    try {
+      const { root, q } = mount();
+      await importViaBulk(user, q, "Mix Tape, [VIDEOID0001]");
+      await user.click(root.querySelector("#export-playlist"));
+      await user.click(root.querySelector("#export-download"));
+
+      expect(createURL).toHaveBeenCalled();
+      expect(downloaded).toBe("Mix-Tape.md");
+      expect(root.querySelector("#export-status").textContent).toMatch(/Downloaded/);
+    } finally {
+      URL.createObjectURL = origCreate;
+      URL.revokeObjectURL = origRevoke;
+      HTMLAnchorElement.prototype.click = origClick;
+    }
+  });
+
+  it("imports playlists from an uploaded text file", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    const file = new File(["From File, [VIDEOID0001, VIDEOID0002]"], "playlist.md", {
+      type: "text/markdown"
+    });
+
+    // The input is hidden (triggered by its label), so set files directly and
+    // fire change rather than going through user.upload on a hidden element.
+    const input = root.querySelector("#import-file-input");
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await waitFor(() => {
+      const saved = loadState(localStorage);
+      const imported = saved.playlists.find((p) => p.name === "From File");
+      expect(imported).toBeTruthy();
+      expect(imported.tracks.map((t) => t.videoId)).toEqual(["VIDEOID0001", "VIDEOID0002"]);
+    });
+    expect(root.querySelector("#import-status").textContent).toMatch(/Imported/);
+  });
+
+  it("share copies the link and opens a confirmation modal showing it", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    await importViaBulk(user, q, "Share Me, [VIDEOID0001]");
+
+    await user.click(root.querySelector("#share-playlist"));
+    const modal = root.querySelector("#share-modal");
+    await waitFor(() => expect(modal.hidden).toBe(false));
+    expect(root.querySelector("#share-name").textContent).toContain("Share Me");
+    expect(root.querySelector("#share-url").textContent).toMatch(/\?playlist=/);
+
+    await user.click(within(modal).getByRole("button", { name: "Close" }));
+    expect(modal.hidden).toBe(true);
   });
 
   it("dismisses the import format modal with its close button", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
-    await user.click(q.getByRole("button", { name: "Import format help" }));
+    await user.click(q.getByRole("button", { name: "Playlist format help" }));
     const modal = root.querySelector("#import-modal");
     expect(modal.hidden).toBe(false);
     await user.click(within(modal).getByRole("button", { name: "Close" }));
@@ -383,7 +455,7 @@ describe("bulk import", () => {
   it("keeps the import format modal open when its backdrop is clicked", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
-    await user.click(q.getByRole("button", { name: "Import format help" }));
+    await user.click(q.getByRole("button", { name: "Playlist format help" }));
     const modal = root.querySelector("#import-modal");
     expect(modal.hidden).toBe(false);
 

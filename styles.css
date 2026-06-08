@@ -506,6 +506,21 @@ input.add-field {
   border-color: rgba(224, 177, 91, 0.32);
 }
 
+/* Add to library / Import from file / status wrap onto new lines when narrow. */
+.inline-actions {
+  flex-wrap: wrap;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.export-actions .button {
+  flex: 1 1 auto;
+}
+
 .import-head {
   display: flex;
   align-items: center;
@@ -841,14 +856,29 @@ input.add-field {
   background: rgba(255, 255, 255, 0.035);
 }
 
-.drawer-reset-panel {
+/* Small label + note + icon-button widget (Remove = red, Import = yellow). */
+.drawer-reset-panel,
+.drawer-mini-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 12px;
+}
+
+.drawer-reset-panel {
   background: rgba(181, 65, 39, 0.12);
   box-shadow: inset 4px 0 0 rgba(181, 65, 39, 0.76);
+}
+
+.import-mini {
+  background: rgba(224, 177, 91, 0.12);
+  box-shadow: inset 4px 0 0 rgba(224, 177, 91, 0.76);
+}
+
+.import-file-action {
+  background: var(--accent-2);
+  color: #111;
 }
 
 .drawer-section-title,
@@ -877,6 +907,7 @@ input.add-field {
 
 .mode-button {
   min-height: 38px;
+  padding: 0 16px;
   font-size: 0.84rem;
   font-weight: 900;
 }
@@ -939,6 +970,11 @@ input.add-field {
   color: var(--muted);
   font-size: 0.76rem;
   line-height: 1.35;
+}
+
+.drawer-note code {
+  color: var(--accent-2);
+  font-size: 0.95em;
 }
 
 .playlist-drawer .clean-action {
@@ -1525,6 +1561,12 @@ input[type="range"] {
 
 .key-wide {
   min-width: 64px;
+}
+
+/* A share URL can be long (big playlist): cap and scroll it. */
+#share-url {
+  max-height: 28vh;
+  overflow: auto;
 }
 
 .tooltip {

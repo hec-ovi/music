@@ -10,7 +10,7 @@
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
-![tests: 80 passing](https://img.shields.io/badge/tests-80%20passing-black.svg)
+![tests: 84 passing](https://img.shields.io/badge/tests-84%20passing-black.svg)
 
 ![Personal Music YT Player playing a public-domain classical playlist, then a free-music sample list](docs/demo.gif)
 
@@ -25,10 +25,11 @@ loop, volume, and direct YouTube links. If you just want it as background audio,
 
 ## What it does
 
-- Create playlists from the Bulk import box: paste a `Playlist Title, [songs]`
+- Create playlists from the Paste playlists box: paste a `Playlist Title, [songs]`
   block, or just a title on its own line to start an empty playlist. Rename and
   delete them later. A title that matches an existing playlist is rejected, so an
-  import never silently overwrites or merges what you already have.
+  import never silently overwrites or merges what you already have. You can also
+  import a playlist from a `.md`/`.txt` file.
 - Add tracks by pasting a video id or any YouTube link. Both work in the same
   field, mixed and comma or newline separated: `id, link, id, link`.
 - Reorder tracks (drag, or the up/down arrows), rename or remove them, add more
@@ -38,18 +39,19 @@ loop, volume, and direct YouTube links. If you just want it as background audio,
   link with no name get auto-named from the YouTube title (when the browser allows
   the lookup), and any name is cleaned of commas, dots, and other punctuation so it
   stays readable and safe to export.
-- Copy a playlist back out as a bulk block, or share it as a URL that rebuilds it
-  in someone else's browser.
+- Export a playlist as text (copy to clipboard or download a `.md` file), or
+  share it as a URL that rebuilds it in someone else's browser.
 - Use internal modals for rename/delete flows; no browser prompt/confirm popups.
 - Everything persists to `localStorage`, so a reload keeps your library. Wipe it
-  all from the drawer's "Clean local data" button.
+  all from the drawer's "Remove" (trash) button.
 
 ## Using it
 
-Open the page, open the Playlists drawer, and paste into the Bulk import box: a
-full `Playlist Title, [songs]` block, or just a title to make an empty playlist.
-The info button next to "Bulk import format" opens the format guide with
-examples. Then paste ids/links into the Add field and click a track to play it.
+Open the page, open the Playlists drawer, and paste into the Paste playlists box:
+a full `Playlist Title, [songs]` block, or just a title to make an empty playlist
+(or use "Import from file"). The info button next to "Paste playlists" opens the
+format guide with examples. Then paste ids/links into the Add field and click a
+track to play it.
 Click a playlist to select it, which reveals its collapse, rename, and delete
 controls; the collapse arrow opens and folds its editor. The "?" button in the
 top right opens a quick visual guide to the controls and keys.
@@ -76,9 +78,9 @@ https://youtu.be/VIDEOID0002, VIDEOID0003, https://www.youtube.com/watch?v=VIDEO
 Track label | VIDEOID0005             # optional "Label | id-or-link"
 ```
 
-### Bulk import / AI agent format
+### Paste playlists / AI agent format
 
-The Bulk import box accepts one playlist per line:
+The Paste playlists box accepts one playlist per line:
 
 ```
 Playlist Title, [id, https://youtu.be/id, Song Name | id]
@@ -131,7 +133,7 @@ since it carries no personal playlist data.
 ## For AI agents
 
 If you are an agent building a playlist for someone, read [`SKILL.md`](SKILL.md).
-It is a short, copy-paste ready guide for emitting the bulk-import block the user
+It is a short, copy-paste ready guide for emitting the playlist block the user
 pastes into the app. [`PLAYLISTS_FORMAT.md`](PLAYLISTS_FORMAT.md) is the longer
 reference.
 

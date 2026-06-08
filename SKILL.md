@@ -8,7 +8,7 @@ description: Produce a Personal Music YT Player bulk-import block so a user can 
 Personal Music YT Player is a static, browser-only YouTube playlist player. Playlists live in
 the user's own browser (localStorage); nothing is stored server-side. Your job as
 an agent is to emit a plain-text **bulk-import block** for a single playlist that
-the user pastes into the app's "Bulk import" box. You only emit YouTube video ids;
+the user pastes into the app's "Paste playlists" box. You only emit YouTube video ids;
 you do not attach or play media yourself.
 
 ## How users will ask you
@@ -38,6 +38,10 @@ Playlist Title, [Song Name | VIDEO_ID, Song Name | VIDEO_ID, Song Name | VIDEO_I
 - Inside the `[ ]` brackets is the song list. Each song is `Song Name | VIDEO_ID`.
 - `VIDEO_ID` is a **bare 11-character YouTube id** from `A-Z a-z 0-9 _ -`, e.g.
   `CsQ59uMYB_Y`. Nothing else.
+- The `|` only **separates** the name from the id; it is not an "or". The id is
+  **required** and the name is optional. A label with no id (or a name without a
+  `|`) resolves to nothing and is dropped by the app, so never emit a label by
+  itself. Always pair every name with an id: `Song Name | VIDEO_ID`.
 
 ### Only emit bare ids, never links
 

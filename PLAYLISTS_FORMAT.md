@@ -29,10 +29,14 @@ Optional readable name per track with a pipe (`Label | id-or-link`):
 Track one | VIDEOID0001, Track two | https://youtu.be/VIDEOID0002
 ```
 
-## Bulk import (the agent format)
+The `|` only separates the name from the id/link; it does not mean "or". The
+id or link is required and the name is optional, so a label by itself (no id, or
+no `|`) is dropped. Always pair a name with an id/link.
+
+## Paste playlists (the agent format)
 
 This is the format an AI agent should output. The user pastes it into the
-**Bulk import** box and each block becomes a playlist.
+**Paste playlists** box and each block becomes a playlist.
 
 ```
 Playlist Title, [item, item, item]
