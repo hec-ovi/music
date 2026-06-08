@@ -89,7 +89,6 @@ svg {
 .hero-actions,
 .hero-transport,
 .hero-tools,
-.transport,
 .options,
 .inline-actions,
 .modal-actions {
@@ -99,7 +98,6 @@ svg {
 }
 
 .round-button,
-.transport-button,
 .icon-button,
 .icon-submit {
   display: inline-grid;
@@ -115,7 +113,6 @@ svg {
 }
 
 .round-button:not(:disabled):hover,
-.transport-button:not(:disabled):hover,
 .icon-button:not(:disabled):hover,
 .icon-submit:not(:disabled):hover,
 .button:not(:disabled):hover,
@@ -138,7 +135,6 @@ svg {
 }
 
 .round-button:disabled,
-.transport-button:disabled,
 .icon-button:disabled,
 .icon-submit:disabled,
 .button:disabled {
@@ -390,7 +386,6 @@ input.search-field {
   font-size: 0.84rem;
 }
 
-.create-form,
 .add-form {
   display: flex;
   align-items: center;
@@ -1227,18 +1222,6 @@ input.add-field {
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-.transport {
-  justify-content: center;
-}
-
-.transport-button {
-  width: 34px;
-  height: 34px;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
 }
 
 .seekbar {

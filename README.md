@@ -48,10 +48,11 @@ loop, volume, and direct YouTube links. If you just want it as background audio,
 
 Open the page, open the Playlists drawer, and paste into the Bulk import box: a
 full `Playlist Title, [songs]` block, or just a title to make an empty playlist.
-The "+" next to "Bulk import format" explains the format with examples. Then
-paste ids/links into the Add field and click a track to play it. Click a playlist
-to open its editor; the collapse arrow next to its name folds it back. The "?"
-button in the top right opens a quick visual guide to the controls and keys.
+The info button next to "Bulk import format" opens the format guide with
+examples. Then paste ids/links into the Add field and click a track to play it.
+Click a playlist to select it, which reveals its collapse, rename, and delete
+controls; the collapse arrow opens and folds its editor. The "?" button in the
+top right opens a quick visual guide to the controls and keys.
 
 Keyboard controls (experimental) follow the old Winamp layout. They listen at
 the page level and skip text fields, so they work whenever the page has focus. If
