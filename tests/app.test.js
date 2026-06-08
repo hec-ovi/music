@@ -136,6 +136,41 @@ describe("playback", () => {
     expect(root.querySelector("#current-position").textContent).toBe("2");
   });
 
+  it("scrolls the playing track into view when it changes", async () => {
+    // jsdom has no scrollIntoView, so install a mock to observe the call.
+    const spy = vi.fn(function () {
+      this.dataset.scrolled = "1";
+    });
+    Element.prototype.scrollIntoView = spy;
+    try {
+      const { user, root } = await setup();
+      await user.click(root.querySelector("#hero-next")); // play track 2
+      const active = root.querySelector(".track.active");
+      expect(active.querySelector(".track-title-button").textContent).toBe("bbbbbbbbbbb");
+      expect(active.dataset.scrolled).toBe("1");
+      expect(spy).toHaveBeenCalledWith({ block: "nearest", behavior: "smooth" });
+    } finally {
+      delete Element.prototype.scrollIntoView;
+    }
+  });
+
+  it("does not scroll the list when the active track is filtered out by search", async () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    try {
+      const { user, root } = await setup();
+      await user.click(root.querySelector("#hero-play")); // play track 1 (aaaa...)
+      spy.mockClear();
+      const search = root.querySelector("#search");
+      await user.type(search, "ccccccccccc"); // active track 1 is now filtered out
+      expect(root.querySelector(".track.active")).toBeNull();
+      // Re-rendering on search must not try to scroll a now-absent active row.
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      delete Element.prototype.scrollIntoView;
+    }
+  });
+
   it("plays a track when clicking the row outside controls and links", async () => {
     const { user, fake, root } = await setup();
     await user.click(root.querySelectorAll(".track")[1]);

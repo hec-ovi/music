@@ -1302,6 +1302,16 @@ export function initApp(options) {
     els.trackList.append(fragment);
   }
 
+  // Scroll the currently playing row into view. Uses block: "nearest" so it only
+  // moves when the row is actually off-screen (no jump if it is already visible),
+  // and no-ops when the active track is filtered out by the search query.
+  function scrollActiveTrackIntoView() {
+    const activeRow = els.trackList.querySelector(".track.active");
+    if (activeRow && typeof activeRow.scrollIntoView === "function") {
+      activeRow.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+
   function render() {
     renderTabs();
     renderCoverGrid();
@@ -1418,6 +1428,7 @@ export function initApp(options) {
     renderCoverGrid();
     renderNow();
     renderTracks();
+    scrollActiveTrackIntoView();
 
     const track = currentTrack();
     if (!track) return;
