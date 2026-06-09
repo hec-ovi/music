@@ -59,6 +59,8 @@ and full transport controls, or flip the video off and use it as background audi
 
 ## Using it
 
+**Use it live at: [hec-ovi.github.io/music](https://hec-ovi.github.io/music/)**
+
 Open the page, open the **Playlists** drawer, and paste into the box: a full
 `Playlist Title, [songs]` block, or just a title for an empty list (or import a
 file). Paste ids/links into the **Add** field, then click a track to play. Every
@@ -79,7 +81,9 @@ Ask an AI agent to turn a list of songs into the import format and paste the
 result. Agents should read [`SKILL.md`](SKILL.md); the full reference is in
 [`PLAYLISTS_FORMAT.md`](PLAYLISTS_FORMAT.md).
 
-## Run it
+## Run it locally
+
+Only needed if you want to hack on it; otherwise just use the live link above.
 
 ```bash
 npm install
