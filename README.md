@@ -10,7 +10,7 @@
 ![backend: none](https://img.shields.io/badge/backend-none-black.svg)
 ![vanilla JS + ES modules](https://img.shields.io/badge/vanilla-JS%20%2B%20ES%20modules-black.svg)
 [![player: YouTube IFrame API](https://img.shields.io/badge/player-YouTube%20IFrame%20API-black.svg)](https://developers.google.com/youtube/iframe_api_reference)
-![tests: 93 passing](https://img.shields.io/badge/tests-93%20passing-black.svg)
+![tests: 100 passing](https://img.shields.io/badge/tests-100%20passing-black.svg)
 
 <table>
   <tr>
@@ -38,7 +38,7 @@ loop, volume, and direct YouTube links. If you just want it as background audio,
   block, or just a title on its own line to start an empty playlist. Rename and
   delete them later. A title that matches an existing playlist is rejected, so an
   import never silently overwrites or merges what you already have. You can also
-  import a playlist from a `.md`/`.txt` file.
+  import from one or more `.md`/`.txt` files in a single pick.
 - Add tracks by pasting a video id or any YouTube link. Both work in the same
   field, mixed and comma or newline separated: `id, link, id, link`. With an empty
   library, the first add spins up a default "My Playlist" for you, so you can drop
@@ -48,13 +48,15 @@ loop, volume, and direct YouTube links. If you just want it as background audio,
 - Play any track on demand, shuffle, loop, scrub the timeline, set volume.
 - Flip "Play all" (a toggle over the playlist list) to play every playlist as one
   continuous queue. Shuffle then mixes your whole library; duplicates across lists
-  just raise a track's odds. It is a listening mode, so editing is off while it's on.
+  just raise a track's odds. It is a listening mode, so editing is off while it's on,
+  and the queue header turns red to name the list the current track is coming from.
 - See YouTube thumbnails for playlists and tracks. Tracks you add as a bare id or
   link with no name get auto-named from the YouTube title (when the browser allows
   the lookup), and any name is cleaned of commas, dots, and other punctuation so it
   stays readable and safe to export.
 - Export a playlist as text (copy to clipboard or download a `.md` file), or
-  share it as a URL that rebuilds it in someone else's browser.
+  share it as a URL that rebuilds it in someone else's browser. The download button
+  over the playlist list bundles every list (one `.md` each) into a `playlists.zip`.
 - Use internal modals for rename/delete flows; no browser prompt/confirm popups.
 - Everything persists to `localStorage`, so a reload keeps your library. Wipe it
   all from the drawer's "Remove" (trash) button.
@@ -66,9 +68,9 @@ a full `Playlist Title, [songs]` block, or just a title to make an empty playlis
 (or use "Import from file"). The info button next to "Paste playlists" opens the
 format guide with examples. Then paste ids/links into the Add field and click a
 track to play it.
-Click a playlist to select it, which reveals its collapse, rename, and delete
-controls; the collapse arrow opens and folds its editor. The "?" button in the
-top right opens a quick visual guide to the controls and keys.
+Every playlist row carries its own collapse, rename, and delete controls; the
+collapse arrow opens and folds that list's editor, and clicking a row selects it.
+The "?" button in the top right opens a quick visual guide to the controls and keys.
 
 Keyboard controls (experimental) follow the old Winamp layout. They listen at
 the page level and skip text fields, so they work whenever the page has focus. If

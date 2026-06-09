@@ -39,7 +39,8 @@ const ICONS = {
   eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.2.2.5.2 1.1 0 1.6C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.2a1.8 1.8 0 0 1 0-1.6C3.5 9.2 7 5 12 5zm0 2c-4 0-6.9 3.3-8 5 1.1 1.7 4 5 8 5s6.9-3.3 8-5c-1.1-1.7-4-5-8-5z"/><path d="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg>',
   more: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM18 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>',
   info: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.9a8.1 8.1 0 1 1 0 16.2 8.1 8.1 0 0 1 0-16.2z"/><path d="M11 10.5h2V17h-2zM11 6.7h2v2.2h-2z"/></svg>',
-  upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 5 5-1.4 1.4L13 7.8V16h-2V7.8L8.4 10.4 7 9z"/><path d="M5 18h14v2H5z"/></svg>'
+  upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 5 5-1.4 1.4L13 7.8V16h-2V7.8L8.4 10.4 7 9z"/><path d="M5 18h14v2H5z"/></svg>',
+  download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v8.2l2.6-2.6L17 11l-5 5-5-5 1.4-1.4L11 12.2z"/><path d="M5 18h14v2H5z"/></svg>'
 };
 
 const DUPLICATE_PLAYLIST_MESSAGE = "playlist already exist, remove actual, or rename it";
@@ -124,21 +125,24 @@ const SHELL = `
         <div class="drawer-mini-panel import-mini" aria-label="Import from file">
           <div>
             <div class="drawer-section-title">Import</div>
-            <p class="drawer-note">Load playlists straight from a <code>.md</code> or <code>.txt</code> file.</p>
+            <p class="drawer-note">Load playlists straight from one or more <code>.md</code> or <code>.txt</code> files.</p>
           </div>
           <button class="round-button import-file-action" id="import-file-button" type="button" aria-label="Import from file"></button>
-          <input id="import-file-input" type="file" accept=".md,.txt,text/plain,text/markdown" hidden>
+          <input id="import-file-input" type="file" accept=".md,.txt,text/plain,text/markdown" multiple hidden>
         </div>
       </section>
 
       <section class="drawer-panel drawer-library-panel" aria-label="Playlist list">
         <div class="drawer-list-head">
           <div class="drawer-list-title">Playlist list</div>
-          <label class="playall-switch" title="Play every playlist together as one queue">
-            <span class="playall-label">Play all</span>
-            <input id="play-all-toggle" type="checkbox" class="playall-input">
-            <span class="playall-track" aria-hidden="true"><span class="playall-knob"></span></span>
-          </label>
+          <div class="drawer-list-tools">
+            <button class="round-button download-all-action" id="download-all" type="button" aria-label="Download all playlists"></button>
+            <label class="playall-switch" title="Play every playlist together as one queue">
+              <span class="playall-label">Play all</span>
+              <input id="play-all-toggle" type="checkbox" class="playall-input">
+              <span class="playall-track" aria-hidden="true"><span class="playall-knob"></span></span>
+            </label>
+          </div>
         </div>
         <nav class="playlist-tabs" id="playlist-tabs" aria-label="Playlists"></nav>
       </section>
@@ -353,13 +357,11 @@ async function copyText(text) {
   return ok;
 }
 
-// Save `text` to a local file via a transient object URL. The content is plain
-// text; the .md extension just makes it open nicely and re-import cleanly.
-function downloadText(text, filename) {
+// Save a Blob to a local file via a transient object URL.
+function downloadBlob(blob, filename) {
   if (typeof document === "undefined" || typeof URL === "undefined" || !URL.createObjectURL) {
     return false;
   }
-  const blob = new Blob([text], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -369,6 +371,61 @@ function downloadText(text, filename) {
   anchor.remove();
   URL.revokeObjectURL(url);
   return true;
+}
+
+// Save `text` to a local file via a transient object URL. The content is plain
+// text; the .md extension just makes it open nicely and re-import cleanly.
+function downloadText(text, filename) {
+  return downloadBlob(new Blob([text], { type: "text/markdown" }), filename);
+}
+
+// CRC-32 (used by the ZIP central directory). Standard polynomial, computed per
+// call without a lookup table since the playlist files are tiny.
+function crc32(bytes) {
+  let crc = ~0;
+  for (let i = 0; i < bytes.length; i += 1) {
+    crc ^= bytes[i];
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (~crc) >>> 0;
+}
+
+// Build a minimal store-only (uncompressed) ZIP from [{ name, bytes }]. No
+// compression keeps it dependency-free, and the playlist .md files are small
+// text anyway. Enough to hand back one "playlists.zip" that unzips to a folder.
+function buildZip(entries) {
+  const u16 = (n) => [n & 0xff, (n >>> 8) & 0xff];
+  const u32 = (n) => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  entries.forEach((entry) => {
+    const nameBytes = new TextEncoder().encode(entry.name);
+    const data = entry.bytes;
+    const crc = crc32(data);
+    const local = new Uint8Array([
+      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(data.length), ...u32(data.length),
+      ...u16(nameBytes.length), ...u16(0)
+    ]);
+    parts.push(local, nameBytes, data);
+    central.push(new Uint8Array([
+      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(data.length), ...u32(data.length),
+      ...u16(nameBytes.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(offset)
+    ]), nameBytes);
+    offset += local.length + nameBytes.length + data.length;
+  });
+  const centralSize = central.reduce((sum, c) => sum + c.length, 0);
+  const end = new Uint8Array([
+    ...u32(0x06054b50), ...u16(0), ...u16(0),
+    ...u16(entries.length), ...u16(entries.length),
+    ...u32(centralSize), ...u32(offset), ...u16(0)
+  ]);
+  return new Blob([...parts, ...central, end], { type: "application/zip" });
 }
 
 // Read an uploaded file as text. Uses FileReader for the widest support (every
@@ -607,6 +664,7 @@ export function initApp(options) {
     importButton: $("import-button"),
     importStatus: $("import-status"),
     playlistTabs: $("playlist-tabs"),
+    downloadAll: $("download-all"),
     playAllToggle: $("play-all-toggle"),
     clearLocal: $("clear-local"),
     playerFrame: $("player-frame"),
@@ -661,6 +719,7 @@ export function initApp(options) {
   setIconButton(els.shareModalClose, "close", "Close");
   setIconButton(els.addButton, "add", "Add");
   setIconButton(els.importFileButton, "upload", "Import from file");
+  setIconButton(els.downloadAll, "download", "Download all playlists");
   setIconButton(els.clearLocal, "trash", "Wipe local data");
   // Fill every icon placeholder of each kind (the play-all switch reuses the
   // shuffle glyph, so there can be more than one of a given data-icon).
@@ -674,6 +733,7 @@ export function initApp(options) {
   root.querySelector('[title="Show video"]').dataset.tooltip = "Show / hide video";
   root.querySelector('[title="Show video"]').removeAttribute("title");
   els.volume.dataset.tooltip = "Volume";
+  els.downloadAll.dataset.tooltip = "Download every playlist as .md files";
   els.drawerToggle.dataset.tooltip = "Manage your playlists";
   setupTooltips(root, els.tooltip);
 
@@ -732,6 +792,18 @@ export function initApp(options) {
   }
   function allTracks() {
     return state.playlists.flatMap((p) => p.tracks);
+  }
+
+  // In play-all mode the queue is every playlist concatenated, so map a flattened
+  // queue index back to the real playlist that owns that track. Used to surface
+  // which list is actually playing while the merged queue runs.
+  function playlistForFlatIndex(index) {
+    let offset = 0;
+    for (const p of state.playlists) {
+      if (index < offset + p.tracks.length) return p;
+      offset += p.tracks.length;
+    }
+    return null;
   }
 
   function activePlaylist() {
@@ -1077,14 +1149,14 @@ export function initApp(options) {
       const body = document.createElement("span");
       const title = document.createElement("strong");
       const meta = document.createElement("span");
-      // A row is "selected" once clicked (this is the only highlighted state and
-      // the only one that shows controls); "open" means its editor is unfolded.
-      // On first appearance nothing is selected, so nothing is coloured.
-      // In play-all mode the drawer is read-only: rows still show, but their
-      // edit controls and editor stay folded since there is no single active list.
+      // A row is "selected" once clicked (the highlighted state); "open" means its
+      // editor is unfolded. On first appearance nothing is selected, so nothing is
+      // coloured. The collapse/rename/delete controls show on every row so they are
+      // always reachable. In play-all mode the drawer is read-only: rows still
+      // show, but their controls and editor stay folded (no single active list).
       const editable = !playAllOn();
       const isSelected = playlist.id === drawerSelectedPlaylistId;
-      const isOpen = editable && isSelected && playlist.id === drawerExpandedPlaylistId;
+      const isOpen = editable && playlist.id === drawerExpandedPlaylistId;
 
       button.type = "button";
       button.className = "playlist-tab";
@@ -1106,9 +1178,9 @@ export function initApp(options) {
       head.className = "drawer-playlist-head";
       head.append(button);
 
-      // The collapse, rename, and delete controls live inside the selected row's
-      // coloured header and only appear there.
-      if (isSelected && editable) {
+      // The collapse, rename, and delete controls sit in every row's header so
+      // they are always visible (not only on the selected row).
+      if (editable) {
         const controls = document.createElement("div");
         controls.className = "drawer-playlist-controls";
         const collapse = makeIconButton(
@@ -1117,7 +1189,15 @@ export function initApp(options) {
           "drawer-icon-button"
         );
         collapse.addEventListener("click", () => {
-          drawerExpandedPlaylistId = isOpen ? null : playlist.id;
+          // Opening a row's editor also selects it, so the open editor always
+          // belongs to the highlighted row. selectPlaylist clears any expansion,
+          // so set the expansion after it and re-render.
+          const willOpen = !isOpen;
+          if (!playAllOn() && playlist.id !== state.activePlaylistId) {
+            selectPlaylist(playlist.id);
+          }
+          drawerSelectedPlaylistId = playlist.id;
+          drawerExpandedPlaylistId = willOpen ? playlist.id : null;
           renderTabs();
         });
         const rename = makeIconButton("edit", "Rename playlist", "drawer-icon-button");
@@ -1180,8 +1260,20 @@ export function initApp(options) {
     }
     els.currentPosition.textContent = track ? String(currentIndex + 1) : "0";
     els.playlistSize.textContent = String(tracks.length);
-    els.queueName.textContent = playlist ? playlist.name : "Queue";
-    els.queueKicker.hidden = !playlist;
+    // In play-all mode the kicker turns red and names the actual playlist the
+    // current track comes from, instead of the synthetic "All together" label.
+    if (playAllOn()) {
+      const source = track ? playlistForFlatIndex(currentIndex) : null;
+      els.queueKicker.textContent = "ALL PLAYLIST:";
+      els.queueKicker.classList.add("all-mode");
+      els.queueName.textContent = source ? source.name : "All together";
+      els.queueKicker.hidden = false;
+    } else {
+      els.queueKicker.textContent = "PLAYLIST:";
+      els.queueKicker.classList.remove("all-mode");
+      els.queueName.textContent = playlist ? playlist.name : "Queue";
+      els.queueKicker.hidden = !playlist;
+    }
     els.queueCount.textContent = tracks.length + (tracks.length === 1 ? " track" : " tracks");
     els.dockTitle.textContent = track ? track.label : "Nothing selected";
     els.dockLink.textContent = track ? track.url : "YouTube";
@@ -1200,6 +1292,15 @@ export function initApp(options) {
     syncNowPlayingTitle();
   }
 
+  // A track matches the filter when the query appears in its name, id, or the
+  // resolved YouTube title. An empty query matches everything.
+  function trackMatchesQuery(track, query) {
+    if (!query) return true;
+    return (track.label + " " + track.videoId + " " + (track.youtubeTitle || ""))
+      .toLowerCase()
+      .includes(query);
+  }
+
   function renderTracks() {
     const query = els.search.value.trim().toLowerCase();
     els.trackList.replaceChildren();
@@ -1215,12 +1316,7 @@ export function initApp(options) {
 
     const rows = tracks
       .map((track, index) => ({ track, index }))
-      .filter(({ track }) =>
-        !query ||
-        (track.label + " " + track.videoId + " " + (track.youtubeTitle || ""))
-          .toLowerCase()
-          .includes(query)
-      );
+      .filter(({ track }) => trackMatchesQuery(track, query));
 
     if (!rows.length) {
       const empty = document.createElement("div");
@@ -1339,14 +1435,44 @@ export function initApp(options) {
     els.trackList.append(fragment);
   }
 
-  // Scroll the currently playing row into view. Uses block: "nearest" so it only
-  // moves when the row is actually off-screen (no jump if it is already visible),
-  // and no-ops when the active track is filtered out by the search query.
-  function scrollActiveTrackIntoView() {
-    const activeRow = els.trackList.querySelector(".track.active");
-    if (activeRow && typeof activeRow.scrollIntoView === "function") {
-      activeRow.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  // A fast (~0.3s) eased scroll of a container's scrollTop, used so the playing
+  // row snaps to the top quickly instead of with the browser's slow default
+  // smooth scroll. Falls back to an instant jump where rAF is unavailable.
+  let scrollAnimId = null;
+  function animateScrollTop(container, to, duration) {
+    const win = container.ownerDocument ? container.ownerDocument.defaultView : null;
+    if (scrollAnimId != null && win && win.cancelAnimationFrame) {
+      win.cancelAnimationFrame(scrollAnimId);
+      scrollAnimId = null;
     }
+    const start = container.scrollTop;
+    const delta = to - start;
+    if (!win || !win.requestAnimationFrame || !win.performance || Math.abs(delta) < 1) {
+      container.scrollTop = to;
+      return;
+    }
+    const startTime = win.performance.now();
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    const step = (now) => {
+      const t = Math.min(1, (now - startTime) / duration);
+      container.scrollTop = start + delta * easeOutCubic(t);
+      scrollAnimId = t < 1 ? win.requestAnimationFrame(step) : null;
+    };
+    scrollAnimId = win.requestAnimationFrame(step);
+  }
+
+  // Scroll the currently playing row to the TOP of the list, animated in ~0.3s.
+  // No-ops when the active track is filtered out by the search query (no row).
+  function scrollActiveTrackIntoView() {
+    const container = els.trackList;
+    const activeRow = container.querySelector(".track.active");
+    if (!activeRow) return;
+    const target =
+      container.scrollTop +
+      (activeRow.getBoundingClientRect().top - container.getBoundingClientRect().top);
+    const max = container.scrollHeight - container.clientHeight;
+    const clamped = Math.max(0, max > 0 ? Math.min(target, max) : target);
+    animateScrollTop(container, clamped, 300);
   }
 
   function render() {
@@ -1366,6 +1492,9 @@ export function initApp(options) {
     els.addButton.disabled = lockEditing;
     els.exportPlaylist.disabled = lockEditing;
     els.sharePlaylist.disabled = lockEditing;
+    // Download-all stays available in play-all mode (it is read-only); it only
+    // disables when there is nothing to download.
+    els.downloadAll.disabled = !state.playlists.length;
     applyShowVideo();
     enrichTitles();
   }
@@ -1772,17 +1901,38 @@ export function initApp(options) {
 
   els.importFileButton.addEventListener("click", () => els.importFileInput.click());
   els.importFileInput.addEventListener("change", async () => {
-    const file = els.importFileInput.files && els.importFileInput.files[0];
-    els.importFileInput.value = ""; // allow re-selecting the same file later
-    if (!file) return;
-    let text = "";
-    try {
-      text = await readFileAsText(file);
-    } catch (_) {
-      els.importStatus.textContent = "Could not read that file.";
+    const files = Array.from(els.importFileInput.files || []);
+    els.importFileInput.value = ""; // allow re-selecting the same files later
+    if (!files.length) return;
+    // Read and import every selected file, then report the combined totals so a
+    // multi-file load reads as one import (each file is appended in turn).
+    const totals = { summary: [], imported: [], duplicates: [], totalAdded: 0 };
+    let failed = 0;
+    for (const file of files) {
+      let text = "";
+      try {
+        text = await readFileAsText(file);
+      } catch (_) {
+        failed += 1;
+        continue;
+      }
+      const result = await importPlaylistText(text);
+      totals.summary.push(...result.summary);
+      totals.imported.push(...result.imported);
+      totals.duplicates.push(...result.duplicates);
+      totals.totalAdded += result.totalAdded || 0;
+    }
+    if (!totals.summary.length) {
+      els.importStatus.textContent = failed
+        ? "Could not read " + (failed === 1 ? "that file." : "those files.")
+        : "Nothing imported. Check the format.";
       return;
     }
-    reportImport(await importPlaylistText(text), els.importStatus);
+    reportImport(totals, els.importStatus);
+    if (failed) {
+      els.importStatus.textContent +=
+        " Skipped " + failed + " unreadable file" + (failed === 1 ? "." : "s.");
+    }
   });
 
   els.exportCopy.addEventListener("click", async () => {
@@ -1803,6 +1953,29 @@ export function initApp(options) {
     }
     const ok = downloadText(playlistToBulkText(playlist), playlistFileName(playlist.name));
     els.exportStatus.textContent = ok ? "Downloaded." : "Download not supported here.";
+  });
+
+  // Bundle every playlist, each as its own .md inside a "playlists/" folder, into
+  // one playlists.zip download. File names are de-duplicated so two lists that
+  // normalize to the same name do not collide inside the archive.
+  els.downloadAll.addEventListener("click", () => {
+    if (!state.playlists.length) {
+      setStatus("No playlists to download");
+      return;
+    }
+    const used = new Set();
+    const entries = state.playlists.map((playlist) => {
+      let name = playlistFileName(playlist.name);
+      let i = 2;
+      while (used.has(name.toLowerCase())) {
+        name = playlistFileName(playlist.name).replace(/\.md$/, "") + "-" + i + ".md";
+        i += 1;
+      }
+      used.add(name.toLowerCase());
+      return { name: "playlists/" + name, bytes: new TextEncoder().encode(playlistToBulkText(playlist)) };
+    });
+    const ok = downloadBlob(buildZip(entries), "playlists.zip");
+    setStatus(ok ? "Downloaded all playlists" : "Download not supported here");
   });
 
   els.addForm.addEventListener("submit", (event) => {
@@ -1827,10 +2000,45 @@ export function initApp(options) {
 
   els.clearLocal.addEventListener("click", clearLocalData);
 
-  // Switching the source (single playlist <-> all together) restarts from the top
-  // of the new queue, the same reset selecting a playlist does.
+  // Switching the source (single playlist <-> all together) normally restarts
+  // from the top of the new queue. The exception: if a track is actually playing,
+  // we never interrupt it. We keep the same track sounding and just re-point the
+  // queue at it in the new mode (no stop, no reload), so the toggle is seamless.
   els.playAllToggle.addEventListener("change", () => {
-    state.settings.playAll = els.playAllToggle.checked;
+    const wasOn = state.settings.playAll;
+    const nowOn = els.playAllToggle.checked;
+    // Captured while still in the old mode, so the queue/track are the old ones.
+    const playingTrack = isPlaying ? currentTrack() : null;
+    const source = isPlaying && wasOn ? playlistForFlatIndex(currentIndex) : null;
+
+    state.settings.playAll = nowOn;
+
+    if (playingTrack && wasOn !== nowOn) {
+      if (nowOn) {
+        // Into all-mode: find where the playing track sits in the merged queue.
+        const idx = allTracks().indexOf(playingTrack);
+        currentIndex = idx === -1 ? 0 : idx;
+      } else if (source) {
+        // Out of all-mode: make the track's real playlist active and re-point.
+        state.activePlaylistId = source.id;
+        drawerSelectedPlaylistId = source.id;
+        drawerExpandedPlaylistId = null;
+        const idx = source.tracks.indexOf(playingTrack);
+        currentIndex = idx === -1 ? 0 : idx;
+      } else {
+        currentIndex = 0;
+      }
+      history = [];
+      shuffleQueue = [];
+      els.search.value = "";
+      if (state.settings.shuffle) buildShuffleQueue();
+      persist();
+      render();
+      renderNow();
+      // Deliberately no resetPlayerForSelection here: the player keeps playing.
+      return;
+    }
+
     currentIndex = 0;
     history = [];
     shuffleQueue = [];
@@ -1875,6 +2083,19 @@ export function initApp(options) {
   });
 
   els.search.addEventListener("input", renderTracks);
+  // Enter in the filter plays the first matching track and jumps to it: the
+  // filter clears so the song shows in the full list, and playIndex scrolls it
+  // to the top. Without this, a filtered search had no keyboard way to commit.
+  els.search.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const query = els.search.value.trim().toLowerCase();
+    if (!query) return;
+    const idx = activeTracks().findIndex((track) => trackMatchesQuery(track, query));
+    if (idx === -1) return;
+    els.search.value = "";
+    playIndex(idx);
+  });
 
   // Listen on the document, not the app container: keyboard shortcuts should work
   // wherever focus sits on the page, except while typing in a text field.

@@ -376,6 +376,13 @@ input.search-field {
   letter-spacing: 0.02em;
 }
 
+/* Play-all mode: the kicker shouts in red so it is obvious the whole library is
+   playing as one queue and the name beside it is the list actually sounding. */
+.queue-kicker.all-mode {
+  color: #ff4d3a;
+  font-weight: 900;
+}
+
 .queue-name {
   color: var(--accent-2);
 }
@@ -895,6 +902,23 @@ input.add-field {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* The list below is edge-to-edge, but the head needs side padding so the title
+     and the download button do not sit flush against the panel edges. */
+  padding: 0 14px;
+}
+
+.drawer-list-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Download-every-playlist button sits at the head's right edge, next to Play all. */
+.download-all-action {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-2);
+  color: #111;
 }
 
 /* "Play all together" control: a labelled sliding on/off switch that sits over

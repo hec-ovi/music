@@ -169,38 +169,54 @@ describe("playback", () => {
     expect(root.querySelector("#current-position").textContent).toBe("2");
   });
 
-  it("scrolls the playing track into view when it changes", async () => {
-    // jsdom has no scrollIntoView, so install a mock to observe the call.
-    const spy = vi.fn(function () {
-      this.dataset.scrolled = "1";
-    });
-    Element.prototype.scrollIntoView = spy;
+  it("scrolls the playing track to the top of the list, fast", async () => {
+    const origRaf = window.requestAnimationFrame;
+    const origRect = Element.prototype.getBoundingClientRect;
     try {
       const { user, root } = await setup();
+      // jsdom has no layout, so fake the geometry: the list sits at the top of the
+      // viewport and the active row is 500px down inside a scrollable list. Run
+      // requestAnimationFrame past the 0.3s window so the tween lands on its target.
+      const list = root.querySelector("#track-list");
+      Object.defineProperty(list, "scrollHeight", { value: 2000, configurable: true });
+      Object.defineProperty(list, "clientHeight", { value: 600, configurable: true });
+      window.requestAnimationFrame = (cb) => {
+        cb(performance.now() + 1000);
+        return 1;
+      };
+      Element.prototype.getBoundingClientRect = function () {
+        if (this.classList && this.classList.contains("active")) {
+          return { top: 500, bottom: 574, left: 0, right: 0, height: 74, width: 0 };
+        }
+        return { top: 0, bottom: 0, left: 0, right: 0, height: 0, width: 0 };
+      };
+
       await user.click(root.querySelector("#hero-next")); // play track 2
       const active = root.querySelector(".track.active");
       expect(active.querySelector(".track-title-button").textContent).toBe("bbbbbbbbbbb");
-      expect(active.dataset.scrolled).toBe("1");
-      expect(spy).toHaveBeenCalledWith({ block: "nearest", behavior: "smooth" });
+      // The active row's top (500) is brought to the list's top (0): scrollTop = 500.
+      expect(list.scrollTop).toBe(500);
     } finally {
-      delete Element.prototype.scrollIntoView;
+      window.requestAnimationFrame = origRaf;
+      Element.prototype.getBoundingClientRect = origRect;
     }
   });
 
   it("does not scroll the list when the active track is filtered out by search", async () => {
-    const spy = vi.fn();
-    Element.prototype.scrollIntoView = spy;
+    const raf = vi.fn();
+    const origRaf = window.requestAnimationFrame;
+    window.requestAnimationFrame = raf;
     try {
       const { user, root } = await setup();
       await user.click(root.querySelector("#hero-play")); // play track 1 (aaaa...)
-      spy.mockClear();
+      raf.mockClear();
       const search = root.querySelector("#search");
       await user.type(search, "ccccccccccc"); // active track 1 is now filtered out
       expect(root.querySelector(".track.active")).toBeNull();
       // Re-rendering on search must not try to scroll a now-absent active row.
-      expect(spy).not.toHaveBeenCalled();
+      expect(raf).not.toHaveBeenCalled();
     } finally {
-      delete Element.prototype.scrollIntoView;
+      window.requestAnimationFrame = origRaf;
     }
   });
 
@@ -208,6 +224,22 @@ describe("playback", () => {
     const { user, fake, root } = await setup();
     await user.click(root.querySelectorAll(".track")[1]);
     expect(fake.calls.load.at(-1)).toBe("bbbbbbbbbbb");
+  });
+
+  it("plays and jumps to the first filter match when Enter is pressed", async () => {
+    const { user, fake, root } = await setup();
+    const search = root.querySelector("#search");
+    await user.type(search, "ccccccccccc"); // filter down to the third track
+    await user.keyboard("{Enter}");
+
+    // The matching track plays...
+    expect(fake.calls.load.at(-1)).toBe("ccccccccccc");
+    expect(root.querySelector("#now-song").textContent).toBe("ccccccccccc");
+    // ...the filter clears so it shows in the full list again...
+    expect(search.value).toBe("");
+    expect(root.querySelectorAll("#track-list .track")).toHaveLength(3);
+    // ...and the now-playing row is the active one (which playIndex scrolls to).
+    expect(root.querySelector(".track.active .track-title-button").textContent).toBe("ccccccccccc");
   });
 
   it("advances with Next and wraps with loop on", async () => {
@@ -495,6 +527,62 @@ describe("bulk import", () => {
     expect(root.querySelector("#import-status").textContent).toMatch(/Imported/);
   });
 
+  it("imports several files at once from a single multi-file selection", async () => {
+    const { root } = mount();
+    const files = [
+      new File(["First File, [VIDEOID0001]"], "first.md", { type: "text/markdown" }),
+      new File(["Second File, [VIDEOID0002, VIDEOID0003]"], "second.md", { type: "text/markdown" })
+    ];
+
+    const input = root.querySelector("#import-file-input");
+    expect(input.multiple).toBe(true);
+    Object.defineProperty(input, "files", { value: files, configurable: true });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await waitFor(() => {
+      const saved = loadState(localStorage);
+      expect(saved.playlists.map((p) => p.name)).toEqual(["First File", "Second File"]);
+    });
+    // Both files land as one combined report: 2 playlists, 3 tracks total.
+    expect(root.querySelector("#import-status").textContent).toMatch(/Imported 2 playlist\(s\), 3 track\(s\)/);
+  });
+
+  it("bundles every playlist into one playlists.zip download", async () => {
+    const user = userEvent.setup();
+    const createURL = vi.fn(() => "blob:mock");
+    const origCreate = URL.createObjectURL;
+    const origRevoke = URL.revokeObjectURL;
+    const origClick = HTMLAnchorElement.prototype.click;
+    URL.createObjectURL = createURL;
+    URL.revokeObjectURL = vi.fn();
+    let downloaded = null;
+    HTMLAnchorElement.prototype.click = function () {
+      downloaded = this.download;
+    };
+    try {
+      const { root, q } = mount();
+      await importViaBulk(user, q, "One, [VIDEOID0001]\nTwo, [VIDEOID0002]");
+      await user.click(root.querySelector("#download-all"));
+
+      // One zip blob is produced and offered as "playlists.zip".
+      expect(createURL).toHaveBeenCalledTimes(1);
+      const blob = createURL.mock.calls[0][0];
+      expect(blob).toBeInstanceOf(Blob);
+      expect(blob.type).toBe("application/zip");
+      expect(downloaded).toBe("playlists.zip");
+      expect(root.querySelector("#status-text").textContent).toMatch(/Downloaded all playlists/);
+    } finally {
+      URL.createObjectURL = origCreate;
+      URL.revokeObjectURL = origRevoke;
+      HTMLAnchorElement.prototype.click = origClick;
+    }
+  });
+
+  it("disables the download-all button when there are no playlists", async () => {
+    const { root } = mount();
+    expect(root.querySelector("#download-all").disabled).toBe(true);
+  });
+
   it("share copies the link and opens a confirmation modal showing it", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
@@ -564,7 +652,8 @@ describe("playlist selection and collapse", () => {
     expect(root.querySelector(".drawer-playlist-card")).toBeTruthy(); // the row is there
     expect(root.querySelector(".drawer-playlist-card.selected")).toBeNull(); // but unselected
     expect(root.querySelector(".drawer-playlist-card.open")).toBeNull();
-    expect(root.querySelector(".drawer-playlist-controls")).toBeNull(); // and no controls
+    // Controls are always visible, even before the row is selected.
+    expect(root.querySelector(".drawer-playlist-controls")).toBeTruthy();
   });
 
   it("does not fold the editor when the already-selected row's body is clicked", async () => {
@@ -594,22 +683,42 @@ describe("playlist selection and collapse", () => {
     expect(root.querySelector(".drawer-playlist-card.open")).toBeTruthy();
   });
 
-  it("shows controls only on the selected row and moves them when selection changes", async () => {
+  it("shows controls on every row while only one row is selected at a time", async () => {
     const user = userEvent.setup();
     const { root, q } = mount();
     await importViaBulk(user, q, "Alpha, [VIDEOID0001]");
     await importViaBulk(user, q, "Beta, [VIDEOID0002]"); // Beta is now the selected one
 
-    // Exactly one selected row, carrying a single set of controls.
+    // Both rows carry their own controls, but only one row is highlighted.
     expect(root.querySelectorAll(".drawer-playlist-card.selected")).toHaveLength(1);
-    expect(q.getAllByRole("button", { name: "Rename playlist" })).toHaveLength(1);
+    expect(q.getAllByRole("button", { name: "Rename playlist" })).toHaveLength(2);
+    expect(q.getAllByRole("button", { name: "Delete playlist" })).toHaveLength(2);
 
-    // Selecting Alpha moves the selection there and collapses everything.
+    // Selecting Alpha moves the highlight there and collapses everything; the
+    // controls stay on both rows.
     await user.click(q.getByRole("button", { name: /Alpha/ }));
     const selected = root.querySelector(".drawer-playlist-card.selected");
     expect(within(selected).getByText("Alpha")).toBeTruthy();
     expect(root.querySelector(".drawer-playlist-card.open")).toBeNull();
-    expect(q.getAllByRole("button", { name: "Rename playlist" })).toHaveLength(1);
+    expect(q.getAllByRole("button", { name: "Rename playlist" })).toHaveLength(2);
+  });
+
+  it("expands any row's editor straight from its collapse arrow", async () => {
+    const user = userEvent.setup();
+    const { root, q } = mount();
+    await importViaBulk(user, q, "Alpha, [VIDEOID0001]");
+    await importViaBulk(user, q, "Beta, [VIDEOID0002]"); // Beta selected + open
+
+    // Alpha is not selected, but its expand arrow still opens its editor (and
+    // selects it), folding Beta.
+    const cards = root.querySelectorAll(".drawer-playlist-card");
+    const alphaCard = [...cards].find((c) => within(c).queryByText("Alpha"));
+    await user.click(within(alphaCard).getByRole("button", { name: "Expand playlist" }));
+
+    const open = root.querySelector(".drawer-playlist-card.open");
+    expect(within(open).getByText("Alpha")).toBeTruthy();
+    expect(root.querySelectorAll(".drawer-playlist-card.open")).toHaveLength(1);
+    expect(within(open).getByText("Alpha")).toBeTruthy();
   });
 });
 
@@ -877,8 +986,13 @@ describe("play all together", () => {
 
     await user.click(q.getByRole("checkbox", { name: /play all/i }));
 
-    // The queue is now the union of both playlists, in order, with the label changed.
-    expect(root.querySelector("#queue-name").textContent).toBe("All together");
+    // The queue is now the union of both playlists, in order. The red kicker
+    // announces all-playlist mode and names the list the current track lives in
+    // (the first track belongs to "First").
+    const kicker = root.querySelector("#queue-kicker");
+    expect(kicker.textContent).toBe("ALL PLAYLIST:");
+    expect(kicker.classList.contains("all-mode")).toBe(true);
+    expect(root.querySelector("#queue-name").textContent).toBe("First");
     expect(root.querySelector("#queue-count").textContent).toBe("3 tracks");
     expect([...root.querySelectorAll("#track-list .track-source")].map((n) => n.textContent)).toEqual([
       "VIDEOID0001",
@@ -895,6 +1009,8 @@ describe("play all together", () => {
     await user.click(within(root.querySelector("#track-list")).getByRole("button", { name: "C" }));
 
     expect(root.querySelector("#now-song").textContent).toBe("C");
+    // The kicker name follows the playing track back to its real playlist.
+    expect(root.querySelector("#queue-name").textContent).toBe("Second");
   });
 
   it("locks editing while play-all is on (add disabled, no row actions, no drag)", async () => {
@@ -911,6 +1027,49 @@ describe("play all together", () => {
     // Rows are play-only: no reorder/rename/remove actions and not draggable.
     expect(root.querySelectorAll("#track-list .track-actions").length).toBe(0);
     expect(root.querySelector("#track-list .track").getAttribute("draggable")).toBe(null);
+  });
+
+  it("keeps the song playing when turning play-all OFF, activating its real playlist", async () => {
+    const { user, fake, root } = await withTwoPlaylists();
+
+    await user.click(within(root).getByRole("checkbox", { name: /play all/i }));
+    // Play "C" (lives in the second playlist) through the merged queue.
+    await user.click(within(root.querySelector("#track-list")).getByRole("button", { name: "C" }));
+    const loadsBefore = fake.calls.load.length;
+    const stopsBefore = fake.calls.stop;
+
+    await user.click(within(root).getByRole("checkbox", { name: /play all/i })); // turn OFF
+
+    // The same track keeps playing: no stop, no reload of the player.
+    expect(fake.calls.stop).toBe(stopsBefore);
+    expect(fake.calls.load.length).toBe(loadsBefore);
+    expect(root.querySelector("#now-song").textContent).toBe("C");
+    // Its real playlist is now the active, single-playlist source.
+    expect(loadState(localStorage).settings.playAll).toBe(false);
+    expect(root.querySelector("#queue-name").textContent).toBe("Second");
+    expect(root.querySelector("#queue-kicker").classList.contains("all-mode")).toBe(false);
+    expect(root.querySelector("#current-position").textContent).toBe("1"); // C is #1 in Second
+  });
+
+  it("keeps the song playing when turning play-all ON, re-pointing the merged queue", async () => {
+    const { user, fake, root } = await withTwoPlaylists();
+
+    // The active single playlist is "Second" (last imported). Play its track "C".
+    await user.click(within(root.querySelector("#track-list")).getByRole("button", { name: "C" }));
+    const loadsBefore = fake.calls.load.length;
+    const stopsBefore = fake.calls.stop;
+
+    await user.click(within(root).getByRole("checkbox", { name: /play all/i })); // turn ON
+
+    // Same track keeps playing: no stop, no reload.
+    expect(fake.calls.stop).toBe(stopsBefore);
+    expect(fake.calls.load.length).toBe(loadsBefore);
+    expect(root.querySelector("#now-song").textContent).toBe("C");
+    // The merged queue is now active and pointed at C (the 3rd of three tracks),
+    // which still belongs to "Second".
+    expect(loadState(localStorage).settings.playAll).toBe(true);
+    expect(root.querySelector("#queue-name").textContent).toBe("Second");
+    expect(root.querySelector("#current-position").textContent).toBe("3");
   });
 
   it("persists the toggle and restores a single playlist when turned off", async () => {
